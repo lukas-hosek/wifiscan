@@ -38,8 +38,8 @@ void App::ScanLoop(std::stop_token stopToken)
 {
 	while (!stopToken.stop_requested())
 	{
-		auto scanStart = std::chrono::steady_clock::now();
 		auto freshNetworks = _scanner.GetNetworks();
+		auto scanEnd = std::chrono::steady_clock::now();
 
 		std::ranges::sort(freshNetworks, [](const wifi::Network& lhs, const wifi::Network& rhs)
 		{
@@ -49,17 +49,22 @@ void App::ScanLoop(std::stop_token stopToken)
 		{
 			std::lock_guard lock(_mutex);
 			_networks  = std::move(freshNetworks);
-			_lastScan  = scanStart;
+			_lastScan  = scanEnd;
 
 			const std::string& lastError = _scanner.GetLastError();
 			if (!lastError.empty())
 				_statusMsg = "Error: " + lastError;
 			else
-				_statusMsg = "Last scan: " + FormatTime(scanStart);
+				_statusMsg = "Last scan: " + FormatTime(scanEnd);
 		}
 
 		_screen.PostEvent(ftxui::Event::Custom);
-		std::this_thread::sleep_for(std::chrono::seconds(2));
+		auto wakeAt = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		while (!stopToken.stop_requested() && std::chrono::steady_clock::now() < wakeAt)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			_screen.PostEvent(ftxui::Event::Custom);
+		}
 	}
 }
 
@@ -116,7 +121,7 @@ ftxui::Element App::RenderStatusBar()
 	using namespace ftxui;
 
 	std::string statusMsg;
-	int secondsUntilNext = 2;
+	int secondsUntilNext = 5;
 	{
 		std::lock_guard lock(_mutex);
 		statusMsg = _statusMsg;
@@ -124,7 +129,7 @@ ftxui::Element App::RenderStatusBar()
 		{
 			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
 			    std::chrono::steady_clock::now() - _lastScan).count();
-			secondsUntilNext = std::max(0LL, 2LL - elapsed);
+			secondsUntilNext = std::max(0LL, 5LL - elapsed);
 		}
 	}
 
