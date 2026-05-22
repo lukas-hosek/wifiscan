@@ -1,0 +1,10 @@
+# Build output
+build/
+
+# IDE
+.claude/
+.copilot/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,36 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug WIFIScan (root)",
+			"type": "cppdbg",
+			"request": "attach",
+			"program": "${workspaceFolder}/build/wifiscan",
+			"miDebuggerServerAddress": "localhost:2345",
+			"miDebuggerPath": "/usr/bin/gdb",
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"MIMode": "gdb",
+			"setupCommands": [
+				{ "text": "-enable-pretty-printing", "ignoreFailures": true }
+			],
+			"preLaunchTask": "Launch gdbserver (root)"
+		},
+		{
+			"name": "Debug WIFIScan",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/wifiscan",
+			"args": [],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"externalConsole": true,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{ "text": "-enable-pretty-printing", "ignoreFailures": true }
+			],
+			"preLaunchTask": "CMake Build",
+			"miDebuggerPath": "/usr/bin/gdb"
+		}
+	]
+}

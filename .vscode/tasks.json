@@ -1,0 +1,56 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Init Submodules",
+			"type": "shell",
+			"command": "git submodule update --init --recursive",
+			"group": "build",
+			"presentation": { "reveal": "always" }
+		},
+		{
+			"label": "CMake Configure",
+			"type": "shell",
+			"command": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": { "reveal": "always" }
+		},
+		{
+			"label": "CMake Build",
+			"type": "shell",
+			"command": "cmake --build build -j$(nproc)",
+			"group": { "kind": "build", "isDefault": true },
+			"problemMatcher": "$gcc",
+			"dependsOn": "CMake Configure",
+			"presentation": { "reveal": "always" }
+		},
+		{
+			"label": "Launch gdbserver (root)",
+			"type": "shell",
+			"command": "sudo gdbserver localhost:2345 ${workspaceFolder}/build/wifiscan",
+			"isBackground": true,
+			"dependsOn": "CMake Build",
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^(.*)$",
+					"message": 1
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^Process .* created",
+					"endsPattern": "^Listening on port"
+				}
+			},
+			"presentation": { "reveal": "always", "panel": "dedicated", "close": false }
+		},
+		{
+			"label": "Run WIFIScan",
+			"type": "shell",
+			"command": "sudo ./build/wifiscan",
+			"group": "test",
+			"dependsOn": "CMake Build",
+			"presentation": { "reveal": "always", "panel": "dedicated" }
+		}
+	]
+}

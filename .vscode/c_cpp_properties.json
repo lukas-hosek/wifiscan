@@ -1,0 +1,17 @@
+{
+	"configurations": [
+		{
+			"name": "Linux",
+			"includePath": [
+				"${workspaceFolder}/src",
+				"${workspaceFolder}/third_party/ftxui/include",
+				"/usr/include/libnl3"
+			],
+			"compilerPath": "/usr/bin/g++",
+			"cppStandard": "c++23",
+			"intelliSenseMode": "linux-gcc-x64",
+			"compileCommands": "${workspaceFolder}/build/compile_commands.json"
+		}
+	],
+	"version": 4
+}
