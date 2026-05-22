@@ -1,12 +1,10 @@
 #include "App.hpp"
-#include "BannerPanel.hpp"
 #include "SpectrumPanel.hpp"
 #include "NetworkTablePanel.hpp"
 #include "Theme.hpp"
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
-#include <algorithm>
 #include <chrono>
 #include <format>
 #include <ctime>
@@ -27,7 +25,6 @@ static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 App::App(wifi::IScanner& scanner)
 	: _scanner(scanner)
 {
-	_panels.push_back(std::make_unique<BannerPanel>(_scanner.GetInterface()));
 	_panels.push_back(std::make_unique<SpectrumPanel>());
 	_panels.push_back(std::make_unique<NetworkTablePanel>());
 
@@ -40,11 +37,6 @@ void App::ScanLoop(std::stop_token stopToken)
 	{
 		auto freshNetworks = _scanner.GetNetworks();
 		auto scanEnd = std::chrono::steady_clock::now();
-
-		std::ranges::sort(freshNetworks, [](const wifi::Network& lhs, const wifi::Network& rhs)
-		{
-			return lhs._signalDbm > rhs._signalDbm;
-		});
 
 		{
 			std::lock_guard lock(_mutex);
@@ -100,17 +92,15 @@ ftxui::Element App::Render()
 
 	auto sep = [&]{ return ftxui::separator() | ftxui::color(theme::Color(theme::UiColor::Border)); };
 
-	// Fixed rows: banner + 3 separators + status bar = 5 lines
-	int available = std::max(6, ftxui::Terminal::Size().dimy - 5);
-	int spectrumHeight = available / 3;
+	// Fixed rows: 2 separators + status bar = 3 lines
+	int available = std::max(6, ftxui::Terminal::Size().dimy - 3);
+	int spectrumHeight = available * 2 / 5;
 	int tableHeight    = available - spectrumHeight;
 
 	return ftxui::vbox({
-		_panels[0]->Render(networks),
+		_panels[0]->Render(networks) | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, spectrumHeight),
 		sep(),
-		_panels[1]->Render(networks) | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, spectrumHeight),
-		sep(),
-		_panels[2]->Render(networks) | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, tableHeight),
+		_panels[1]->Render(networks) | ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, tableHeight),
 		sep(),
 		RenderStatusBar(),
 	}) | ftxui::bgcolor(theme::Color(theme::UiColor::AppBackground));
@@ -140,7 +130,7 @@ ftxui::Element App::RenderStatusBar()
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
 		text("iface: " + _scanner.GetInterface()) | color(theme::Color(theme::UiColor::DataValue)),
 		filler(),
-		text(" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band ") | color(theme::Color(theme::UiColor::Muted)) | dim,
+		text(" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort ") | color(theme::Color(theme::UiColor::Muted)) | dim,
 	});
 }
 

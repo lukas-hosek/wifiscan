@@ -4,6 +4,8 @@
 namespace ui
 {
 
+enum class SortMode { Signal, SSID, Channel };
+
 class NetworkTablePanel : public IPanel
 {
 public:
@@ -14,6 +16,9 @@ public:
 private:
 	// Index of the currently highlighted row in the network table
 	int _selectedRow{0};
+
+	// Active sort column; cycled by pressing 's'
+	SortMode _sortMode{SortMode::Signal};
 };
 
 } // namespace ui

@@ -14,8 +14,10 @@ namespace ui
 static constexpr int kBarWidth = 3;
 // Display width of each channel column in chars (set by the 6-char SSID label)
 static constexpr int kColWidth = 6;
-// Rows consumed by SSID labels (2) + channel number (1) inside each column
-static constexpr int kColumnOverhead = 3;
+// Max SSID labels shown per channel column, sorted strongest → weakest
+static constexpr int kMaxLabels = 5;
+// Rows consumed by SSID labels + channel number inside each column
+static constexpr int kColumnOverhead = kMaxLabels + 1;
 
 static constexpr std::array<int, 14> kChannels24{
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
@@ -70,21 +72,19 @@ ftxui::Element SpectrumPanel::RenderBand(
 
 		if (it != channelNetworks.end())
 		{
-			const auto& channelNets = it->second;
-
-			const wifi::Network* strongest = *std::max_element(
-			    channelNets.begin(), channelNets.end(),
+			auto channelNets = it->second;
+			std::sort(channelNets.begin(), channelNets.end(),
 			    [](const wifi::Network* lhs, const wifi::Network* rhs)
 			    {
-			        return lhs->_signalDbm < rhs->_signalDbm;
+			        return lhs->_signalDbm > rhs->_signalDbm;
 			    });
 
-			int barHeight = std::max(1, strongest->SignalQuality() * maxBarHeight / 100);
+			int barHeight = std::max(1, channelNets.front()->SignalQuality() * maxBarHeight / 100);
 
 			int labelsShown = 0;
 			for (const auto* net : channelNets)
 			{
-				if (labelsShown >= 2) break;
+				if (labelsShown >= kMaxLabels) break;
 				std::string ssidLabel = net->_ssid.empty() ? "???" : net->_ssid;
 				if (ssidLabel.size() > (size_t)kColWidth)
 					ssidLabel = ssidLabel.substr(0, kColWidth);
@@ -93,7 +93,7 @@ ftxui::Element SpectrumPanel::RenderBand(
 				);
 				labelsShown++;
 			}
-			for (; labelsShown < 2; ++labelsShown)
+			for (; labelsShown < kMaxLabels; ++labelsShown)
 				columnElements.push_back(text(std::string(kColWidth, ' ')));
 
 			// Bar blocks, bottom-aligned
@@ -103,7 +103,7 @@ ftxui::Element SpectrumPanel::RenderBand(
 			{
 				columnElements.push_back(
 				    text(std::string(kBarWidth, '|')) |
-				    color(theme::SignalColor(strongest->_signalDbm)) | hcenter
+				    color(theme::SignalColor(channelNets.front()->_signalDbm)) | hcenter
 				);
 			}
 
@@ -115,8 +115,8 @@ ftxui::Element SpectrumPanel::RenderBand(
 		else
 		{
 			// Empty channel — no networks detected
-			columnElements.push_back(text(std::string(kColWidth, ' ')));
-			columnElements.push_back(text(std::string(kColWidth, ' ')));
+			for (int row = 0; row < kMaxLabels; row++)
+				columnElements.push_back(text(std::string(kColWidth, ' ')));
 			for (int row = 0; row < maxBarHeight; row++)
 				columnElements.push_back(text(std::string(kBarWidth, ' ')));
 			columnElements.push_back(
@@ -145,10 +145,10 @@ ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 	};
 	static constexpr std::array<const char*, 3> kBandLabels{"2.4 GHz", "5 GHz", "6 GHz"};
 
-	// Fixed rows in the overall layout: banner + 3 separators + status = 5
-	// Spectrum gets 1/3 of the remaining height; subtract window border (2) and overhead
-	int available    = ftxui::Terminal::Size().dimy - 5;
-	int spectrumRows = std::max(kColumnOverhead + 1, available / 3);
+	// Fixed rows in the overall layout: 2 separators + status = 3
+	// Spectrum gets 2/5 of the remaining height; subtract window border (2) and overhead
+	int available    = ftxui::Terminal::Size().dimy - 3;
+	int spectrumRows = std::max(kColumnOverhead + 1, available * 2 / 5);
 	int maxBarHeight = std::max(1, spectrumRows - kColumnOverhead - 2); // -2 for window border
 
 	std::span<const int> allChannels = BandChannels(_activeBandIndex);

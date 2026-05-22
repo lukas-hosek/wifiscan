@@ -4,6 +4,7 @@
 #include <ftxui/component/event.hpp>
 #include <format>
 #include <algorithm>
+#include <ranges>
 
 namespace ui
 {
@@ -28,6 +29,17 @@ bool NetworkTablePanel::HandleEvent(ftxui::Event event)
 		_selectedRow++;
 		return true;
 	}
+	if (event == ftxui::Event::Character('s'))
+	{
+		switch (_sortMode)
+		{
+			case SortMode::Signal:  _sortMode = SortMode::SSID;    break;
+			case SortMode::SSID:    _sortMode = SortMode::Channel;  break;
+			case SortMode::Channel: _sortMode = SortMode::Signal;   break;
+		}
+		_selectedRow = 0;
+		return true;
+	}
 	return false;
 }
 
@@ -35,28 +47,53 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 {
 	using namespace ftxui;
 
+	// Sort a local copy according to the active sort mode
+	std::vector<wifi::Network> sorted = networks;
+	switch (_sortMode)
+	{
+		case SortMode::Signal:
+			std::ranges::sort(sorted, [](const auto& a, const auto& b) { return a._signalDbm > b._signalDbm; });
+			break;
+		case SortMode::SSID:
+			std::ranges::sort(sorted, [](const auto& a, const auto& b) { return a._ssid < b._ssid; });
+			break;
+		case SortMode::Channel:
+			std::ranges::sort(sorted, [](const auto& a, const auto& b) { return a._channel < b._channel; });
+			break;
+	}
+
 	// Clamp selection to valid range
-	int rowCount = static_cast<int>(networks.size());
+	int rowCount = static_cast<int>(sorted.size());
 	if (_selectedRow >= rowCount && rowCount > 0)
 		_selectedRow = rowCount - 1;
 	if (_selectedRow < 0)
 		_selectedRow = 0;
 
+	// Returns label with "*" appended when this column is the active sort key
+	auto hdrText = [&](const std::string& label, int width, SortMode mode) -> std::string
+	{
+		return PadRight(_sortMode == mode ? label + "*" : label, width);
+	};
+	auto hdrColor = [&](SortMode mode) -> ftxui::Color
+	{
+		return _sortMode == mode ? theme::Color(theme::UiColor::DataValue) : theme::Color(theme::UiColor::ColumnHeader);
+	};
+
 	auto headerRow = hbox({
 		text(" ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("SSID", 24))   | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(hdrText("SSID", 24, SortMode::SSID))     | color(hdrColor(SortMode::SSID))    | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("BSSID", 17))  | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("BSSID", 17))                    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("CH", 4))      | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(hdrText("CH", 4, SortMode::Channel))      | color(hdrColor(SortMode::Channel)) | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("BAND", 5))    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("BAND", 5))                      | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("FREQ", 7))    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("FREQ", 7))                      | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("SIGNAL", 8))  | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(hdrText("SIGNAL", 8, SortMode::Signal))   | color(hdrColor(SortMode::Signal))  | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text(PadRight("BARS", 7))    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("BARS", 7))                      | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
 		text("QUAL") | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 	});
@@ -65,7 +102,7 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 	rows.push_back(headerRow);
 	rows.push_back(separator() | color(theme::Color(theme::UiColor::Border)));
 
-	if (networks.empty())
+	if (sorted.empty())
 	{
 		rows.push_back(
 		    text("  (no networks — try: sudo wifiscan)") | color(theme::Color(theme::UiColor::Muted))
@@ -74,7 +111,7 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 
 	for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
 	{
-		const auto& network = networks[static_cast<size_t>(rowIndex)];
+		const auto& network = sorted[static_cast<size_t>(rowIndex)];
 
 		std::string prefix = network._connected ? "[*] " : " -  ";
 		auto prefixColor = network._connected ? theme::Color(theme::UiColor::ConnectedNetwork) : theme::Color(theme::UiColor::Muted);
@@ -111,7 +148,7 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 			rows.push_back(dataRow);
 	}
 
-	return vbox(rows) | frame;
+	return vbox(rows) | yframe;
 }
 
 } // namespace ui
