@@ -54,16 +54,81 @@ namespace ui
 			}
 		}
 
-		// Buckets the visible networks by channel for a single band, dropping
-		// entries with no channel info.
-		std::map<int, std::vector<const wifi::Network *>> GroupByChannel(
+		// Returns the list of 20-MHz channel slots an AP occupies based on its
+		// primary channel + reported operating width. Returns {primary} when the
+		// width is unknown or we lack the centre-frequency hint needed to span.
+		std::vector<int> CoveredChannels(const wifi::Network &net)
+		{
+			int primary = net._channel;
+			if (primary <= 0 || net._widthMhz <= 20)
+				return {primary};
+
+			// 2.4 GHz HT40 needs the HT-Op secondary-channel offset to know which
+			// way the pair extends. We don't surface that on Network, so fall back
+			// to primary-only (HT40 on 2.4 GHz is rare in modern deployments).
+			if (net._band == wifi::Band::GHz2_4)
+				return {primary};
+
+			if (net._centerFreq1Mhz == 0)
+				return {primary};
+
+			uint32_t baseMhz = (net._band == wifi::Band::GHz6) ? 5950U : 5000U;
+			int centerCh = static_cast<int>((net._centerFreq1Mhz - baseMhz) / 5);
+
+			auto build = [&](std::initializer_list<int> offsets)
+			{
+				std::vector<int> out;
+				out.reserve(offsets.size());
+				for (int o : offsets)
+					out.push_back(centerCh + o);
+				return out;
+			};
+
+			switch (net._widthMhz)
+			{
+				case 40:  return build({-2, +2});
+				case 80:  return build({-6, -2, +2, +6});
+				case 160: return build({-14, -10, -6, -2, +2, +6, +10, +14});
+				case 320: return build({-30, -26, -22, -18, -14, -10, -6, -2,
+				                        +2, +6, +10, +14, +18, +22, +26, +30});
+				default:  return {primary};
+			}
+		}
+
+		struct ChannelOccupancy
+		{
+			// Networks whose PRIMARY channel is this column — labels appear only here.
+			std::vector<const wifi::Network *> primaryNets;
+			// Networks whose operating spread touches this column — bar uses the strongest.
+			std::vector<const wifi::Network *> coveringNets;
+		};
+
+		// Buckets the visible networks per channel for a single band. Each network is
+		// recorded once on its primary channel (for label placement) and once on every
+		// channel its operating bandwidth spans (for bar height/colour).
+		std::map<int, ChannelOccupancy> GroupByChannel(
 			const std::vector<wifi::Network> &networks, wifi::Band band)
 		{
-			std::map<int, std::vector<const wifi::Network *>> byChannel;
+			std::map<int, ChannelOccupancy> byChannel;
 			for (const auto &net : networks)
 			{
-				if (net._band == band && net._channel > 0)
-					byChannel[net._channel].push_back(&net);
+				if (net._band != band || net._channel <= 0)
+					continue;
+				byChannel[net._channel].primaryNets.push_back(&net);
+				for (int ch : CoveredChannels(net))
+				{
+					if (ch > 0)
+						byChannel[ch].coveringNets.push_back(&net);
+				}
+			}
+			for (auto &[ch, occ] : byChannel)
+			{
+				std::sort(occ.coveringNets.begin(), occ.coveringNets.end(),
+				          [](const wifi::Network *a, const wifi::Network *b)
+				          { return a->_signalDbm > b->_signalDbm; });
+				std::sort(occ.primaryNets.begin(), occ.primaryNets.end(),
+				          [](const wifi::Network *a, const wifi::Network *b)
+				          { return a->_signalDbm > b->_signalDbm; });
 			}
 			return byChannel;
 		}
@@ -137,21 +202,32 @@ namespace ui
 			return text(std::to_string(channel)) | color(theme::Color(theme::UiColor::Muted)) | dim | hcenter;
 		}
 
-		ftxui::Element BuildPopulatedColumn(int channel, std::vector<const wifi::Network *> nets, int maxBarHeight)
+		// Empty label stack — used when a channel is only covered by another AP's
+		// wider spread (no primary AP here), so the bar is drawn but the SSID
+		// label slot stays blank to avoid repeating the same name across the spread.
+		ftxui::Element BuildEmptyLabelsBlock()
+		{
+			using namespace ftxui;
+			std::vector<Element> rows;
+			for (int i = 0; i < kMaxLabels; i++)
+				rows.push_back(text(std::string(kColWidth, ' ')));
+			return vbox(rows);
+		}
+
+		ftxui::Element BuildPopulatedColumn(int channel, const ChannelOccupancy &occ, int maxBarHeight)
 		{
 			using namespace ftxui;
 
-			std::sort(nets.begin(), nets.end(),
-					  [](const wifi::Network *lhs, const wifi::Network *rhs)
-					  {
-						  return lhs->_signalDbm > rhs->_signalDbm;
-					  });
+			const wifi::Network *bar = occ.coveringNets.front();
+			int barEighths = std::max(1, bar->SignalQuality() * maxBarHeight * 8 / 100);
+			int topSignal = bar->_signalDbm;
 
-			int barEighths = std::max(1, nets.front()->SignalQuality() * maxBarHeight * 8 / 100);
-			int topSignal = nets.front()->_signalDbm;
+			Element labels = occ.primaryNets.empty()
+				? BuildEmptyLabelsBlock()
+				: BuildLabelsBlock(occ.primaryNets);
 
 			return vbox({
-					   BuildLabelsBlock(nets),
+					   labels,
 					   BuildBarBlock(barEighths, topSignal, maxBarHeight),
 					   BuildChannelLabel(channel, true),
 				   }) |
@@ -186,7 +262,7 @@ namespace ui
 			for (int channel : channels)
 			{
 				auto it = byChannel.find(channel);
-				if (it != byChannel.end())
+				if (it != byChannel.end() && !it->second.coveringNets.empty())
 					columns.push_back(BuildPopulatedColumn(channel, it->second, maxBarHeight));
 				else
 					columns.push_back(BuildEmptyColumn(channel, maxBarHeight));

@@ -45,16 +45,22 @@ ftxui::Element BuildHeaderRow(SortMode active)
 	};
 
 	return hbox({
-		text(" ") | color(theme::Color(theme::UiColor::Muted)),
+		text("    ") | color(theme::Color(theme::UiColor::Muted)),
 		text(hdrText("SSID", 24, SortMode::SSID))    | color(hdrColor(SortMode::SSID))    | bold,
 		sep(),
 		text(PadRight("BSSID", 17))                  | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		sep(),
 		text(hdrText("CH", 4, SortMode::Channel))    | color(hdrColor(SortMode::Channel)) | bold,
 		sep(),
-		text(PadRight("BAND", 5))                    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("BAND", 4))                    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		sep(),
-		text(PadRight("FREQ", 7))                    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		text(PadRight("W", 3))                       | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		sep(),
+		text(PadRight("STD", 3))                     | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		sep(),
+		text(PadRight("SEC", 7))                     | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
+		sep(),
+		text(PadRight("RATE", 7))                    | color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
 		sep(),
 		text(hdrText("SIGNAL", 8, SortMode::Signal)) | color(hdrColor(SortMode::Signal))  | bold,
 		sep(),
@@ -91,6 +97,9 @@ ftxui::Element BuildDataRow(const wifi::Network& net)
 	std::string ssid = net._ssid.empty() ? "???" : net._ssid;
 	auto rowColor = net._connected ? theme::Color(theme::UiColor::ConnectedNetwork) : theme::Color(theme::UiColor::NetworkRow);
 
+	std::string widthStr = net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-";
+	std::string rateStr  = net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-";
+
 	return hbox({
 		text(prefix) | color(prefixColor),
 		text(PadRight(ssid, 24)) | color(rowColor),
@@ -99,9 +108,15 @@ ftxui::Element BuildDataRow(const wifi::Network& net)
 		sep(),
 		text(PadRight(std::to_string(net._channel), 4)) | color(theme::Color(theme::UiColor::DataValue)),
 		sep(),
-		text(PadRight(wifi::BandLabel(net._band), 5)) | color(theme::Color(theme::UiColor::DataValue)),
+		text(PadRight(wifi::BandLabel(net._band), 4)) | color(theme::Color(theme::UiColor::DataValue)),
 		sep(),
-		text(PadRight(std::to_string(net._frequency) + "M", 7)) | color(theme::Color(theme::UiColor::Muted)),
+		text(PadRight(widthStr, 3)) | color(theme::Color(theme::UiColor::DataValue)),
+		sep(),
+		text(PadRight(wifi::StandardLabel(net._standard), 3)) | color(theme::Color(theme::UiColor::DataValue)),
+		sep(),
+		text(PadRight(wifi::SecurityLabel(net._security), 7)) | color(theme::Color(theme::UiColor::DataValue)),
+		sep(),
+		text(PadRight(rateStr, 7)) | color(theme::Color(theme::UiColor::DataValue)),
 		sep(),
 		text(PadRight(std::to_string(net._signalDbm) + " dBm", 8)) | color(theme::SignalColor(net._signalDbm)),
 		sep(),

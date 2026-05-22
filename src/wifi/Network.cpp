@@ -59,4 +59,35 @@ std::string BandLabel(Band band)
 	}
 }
 
+std::string StandardLabel(WifiStandard standard)
+{
+	switch (standard)
+	{
+		case WifiStandard::A:  return "a";
+		case WifiStandard::B:  return "b";
+		case WifiStandard::G:  return "g";
+		case WifiStandard::N:  return "n";
+		case WifiStandard::AC: return "ac";
+		case WifiStandard::AX: return "ax";
+		case WifiStandard::BE: return "be";
+		default:               return "-";
+	}
+}
+
+std::string SecurityLabel(Security security)
+{
+	switch (security)
+	{
+		case Security::Open:                 return "Open";
+		case Security::WEP:                  return "WEP";
+		case Security::WPA:                  return "WPA";
+		case Security::WPA2_Personal:        return "WPA2";
+		case Security::WPA2_Enterprise:      return "WPA2-E";
+		case Security::WPA3_SAE:             return "WPA3";
+		case Security::WPA2_WPA3_Transition: return "WPA2/3";
+		case Security::OWE:                  return "OWE";
+		default:                             return "-";
+	}
+}
+
 } // namespace wifi
