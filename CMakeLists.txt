@@ -24,7 +24,8 @@ add_executable(wifiscan
 	src/wifi/Network.cpp
 	src/wifi/NL80211Scanner.cpp
 	src/ui/Theme.cpp
-src/ui/SpectrumPanel.cpp
+	src/ui/TextUtil.cpp
+	src/ui/SpectrumPanel.cpp
 	src/ui/NetworkTablePanel.cpp
 	src/ui/App.cpp
 )

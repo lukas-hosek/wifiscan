@@ -1,6 +1,5 @@
 #pragma once
 #include "IPanel.hpp"
-#include <span>
 
 namespace ui
 {
@@ -17,14 +16,6 @@ private:
 	int _activeBandIndex{0};
 	// First visible channel index within the current band's full channel list
 	int _scrollOffset{0};
-
-	// Renders the given slice of channels for one band
-	[[nodiscard]] ftxui::Element RenderBand(
-	    const std::vector<wifi::Network>& networks,
-	    std::span<const int> channels,
-	    wifi::Band band,
-	    const std::string& label,
-	    int maxBarHeight) const;
 };
 
 } // namespace ui
