@@ -13,6 +13,9 @@ sudo wifiscan
 
 # By default the program uses the first wifi interface. To specify an interface explicitly:
 sudo wifiscan wlan0
+
+# Non-interactive mode performs a single scan and dumps the network list to a terminal:
+sudo wifiscan --non-interactive
 ```
 
 ## Requirements
