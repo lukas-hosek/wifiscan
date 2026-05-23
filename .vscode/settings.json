@@ -1,5 +1,10 @@
 {
 	"editor.formatOnSave": true,
+	"C_Cpp.clang_format_style": "file",
+	"C_Cpp.clang_format_fallbackStyle": "none",
+	"[cpp]": {
+		"editor.defaultFormatter": "ms-vscode.cpptools"
+	},
 	"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 	"cmake.buildDirectory": "${workspaceFolder}/build",
 	"cmake.configureArgs": ["-DCMAKE_BUILD_TYPE=Debug"],

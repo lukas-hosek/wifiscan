@@ -25,7 +25,8 @@ enum class UiColor
 ftxui::Color Color(UiColor element);
 
 // Returns a color scaled by signal strength:
-// >= -60 dBm → SignalStrong, >= -70 → SignalGood, >= -80 → SignalMedium, else SignalWeak
+// >= -60 dBm → SignalStrong, >= -70 → SignalGood, >= -80 → SignalMedium, else
+// SignalWeak
 ftxui::Color SignalColor(int signalDbm);
 
 } // namespace ui::theme

@@ -16,11 +16,16 @@ int Network::SignalQuality() const noexcept
 int Network::SignalBars() const noexcept
 {
 	int quality = SignalQuality();
-	if (quality >= 80) return 5;
-	if (quality >= 60) return 4;
-	if (quality >= 40) return 3;
-	if (quality >= 20) return 2;
-	if (quality >= 5)  return 1;
+	if (quality >= 80)
+		return 5;
+	if (quality >= 60)
+		return 4;
+	if (quality >= 40)
+		return 3;
+	if (quality >= 20)
+		return 2;
+	if (quality >= 5)
+		return 1;
 	return 0;
 }
 
@@ -52,10 +57,14 @@ std::string BandLabel(Band band)
 {
 	switch (band)
 	{
-		case Band::GHz2_4: return "2.4G";
-		case Band::GHz5:   return "5G";
-		case Band::GHz6:   return "6G";
-		default:           return "???";
+	case Band::GHz2_4:
+		return "2.4G";
+	case Band::GHz5:
+		return "5G";
+	case Band::GHz6:
+		return "6G";
+	default:
+		return "???";
 	}
 }
 
@@ -63,14 +72,22 @@ std::string StandardLabel(WifiStandard standard)
 {
 	switch (standard)
 	{
-		case WifiStandard::A:  return "a";
-		case WifiStandard::B:  return "b";
-		case WifiStandard::G:  return "g";
-		case WifiStandard::N:  return "n";
-		case WifiStandard::AC: return "ac";
-		case WifiStandard::AX: return "ax";
-		case WifiStandard::BE: return "be";
-		default:               return "-";
+	case WifiStandard::A:
+		return "a";
+	case WifiStandard::B:
+		return "b";
+	case WifiStandard::G:
+		return "g";
+	case WifiStandard::N:
+		return "n";
+	case WifiStandard::AC:
+		return "ac";
+	case WifiStandard::AX:
+		return "ax";
+	case WifiStandard::BE:
+		return "be";
+	default:
+		return "-";
 	}
 }
 
@@ -78,15 +95,24 @@ std::string SecurityLabel(Security security)
 {
 	switch (security)
 	{
-		case Security::Open:                 return "Open";
-		case Security::WEP:                  return "WEP";
-		case Security::WPA:                  return "WPA";
-		case Security::WPA2_Personal:        return "WPA2";
-		case Security::WPA2_Enterprise:      return "WPA2-E";
-		case Security::WPA3_SAE:             return "WPA3";
-		case Security::WPA2_WPA3_Transition: return "WPA2/3";
-		case Security::OWE:                  return "OWE";
-		default:                             return "-";
+	case Security::Open:
+		return "Open";
+	case Security::WEP:
+		return "WEP";
+	case Security::WPA:
+		return "WPA";
+	case Security::WPA2_Personal:
+		return "WPA2";
+	case Security::WPA2_Enterprise:
+		return "WPA2-E";
+	case Security::WPA3_SAE:
+		return "WPA3";
+	case Security::WPA2_WPA3_Transition:
+		return "WPA2/3";
+	case Security::OWE:
+		return "OWE";
+	default:
+		return "-";
 	}
 }
 

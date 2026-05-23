@@ -1,5 +1,5 @@
-#include "wifi/NL80211Scanner.hpp"
 #include "ui/App.hpp"
+#include "wifi/NL80211Scanner.hpp"
 #include <cstdio>
 #include <cstdlib>
 
@@ -7,9 +7,10 @@ int main(int argc, char* argv[])
 {
 	try
 	{
-		auto scanner = (argc > 1)
-			? std::make_unique<wifi::NL80211Scanner>(std::string(argv[1]))
-			: std::make_unique<wifi::NL80211Scanner>();
+		auto scanner =
+			(argc > 1)
+				? std::make_unique<wifi::NL80211Scanner>(std::string(argv[1]))
+				: std::make_unique<wifi::NL80211Scanner>();
 
 		ui::App app(*scanner);
 		app.Run();

@@ -4,12 +4,18 @@
 namespace ui
 {
 
-enum class SortMode { Signal, SSID, Channel };
+enum class SortMode
+{
+	Signal,
+	SSID,
+	Channel
+};
 
 class NetworkTablePanel : public IPanel
 {
 public:
-	[[nodiscard]] ftxui::Element Render(const std::vector<wifi::Network>& networks) override;
+	[[nodiscard]] ftxui::Element
+	Render(const std::vector<wifi::Network>& networks) override;
 	[[nodiscard]] std::string GetTitle() const override { return "Networks"; }
 	bool HandleEvent(ftxui::Event event) override;
 

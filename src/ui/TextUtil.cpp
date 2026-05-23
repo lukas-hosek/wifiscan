@@ -15,11 +15,31 @@ uint32_t Utf8Decode(std::string_view str, size_t& pos)
 	unsigned char byte = static_cast<unsigned char>(str[pos]);
 	uint32_t cp;
 	int len;
-	if      (byte < 0x80)           { cp = byte;        len = 1; }
-	else if ((byte & 0xE0) == 0xC0) { cp = byte & 0x1F; len = 2; }
-	else if ((byte & 0xF0) == 0xE0) { cp = byte & 0x0F; len = 3; }
-	else if ((byte & 0xF8) == 0xF0) { cp = byte & 0x07; len = 4; }
-	else                            { ++pos; return 0xFFFD; }
+	if (byte < 0x80)
+	{
+		cp = byte;
+		len = 1;
+	}
+	else if ((byte & 0xE0) == 0xC0)
+	{
+		cp = byte & 0x1F;
+		len = 2;
+	}
+	else if ((byte & 0xF0) == 0xE0)
+	{
+		cp = byte & 0x0F;
+		len = 3;
+	}
+	else if ((byte & 0xF8) == 0xF0)
+	{
+		cp = byte & 0x07;
+		len = 4;
+	}
+	else
+	{
+		++pos;
+		return 0xFFFD;
+	}
 	for (int j = 1; j < len && pos + j < str.size(); ++j)
 		cp = (cp << 6) | (static_cast<unsigned char>(str[pos + j]) & 0x3F);
 	pos += static_cast<size_t>(len);
@@ -29,21 +49,26 @@ uint32_t Utf8Decode(std::string_view str, size_t& pos)
 // True if the code point occupies two terminal columns (CJK, emoji, etc.).
 bool IsWide(uint32_t cp)
 {
-	return (cp >= 0x1100 && cp <= 0x115F) ||
-	       (cp == 0x2329 || cp == 0x232A) ||
-	       (cp >= 0x2E80 && cp <= 0x303E) ||
-	       (cp >= 0x3040 && cp <= 0x33FF) ||
-	       (cp >= 0x3400 && cp <= 0x4DBF) ||
-	       (cp >= 0x4E00 && cp <= 0xA4CF) ||
-	       (cp >= 0xAC00 && cp <= 0xD7AF) ||
-	       (cp >= 0xF900 && cp <= 0xFAFF) ||
-	       (cp >= 0xFE10 && cp <= 0xFE19) ||
-	       (cp >= 0xFE30 && cp <= 0xFE4F) ||
-	       (cp >= 0xFF00 && cp <= 0xFF60) ||
-	       (cp >= 0xFFE0 && cp <= 0xFFE6) ||
-	       (cp >= 0x1F300 && cp <= 0x1F9FF) ||
-	       (cp >= 0x20000 && cp <= 0x2FFFD) ||
-	       (cp >= 0x30000 && cp <= 0x3FFFD);
+	return (cp >= 0x1100 && cp <= 0x115F) || (cp == 0x2329 || cp == 0x232A) ||
+		   (cp >= 0x2E80 && cp <= 0x303E) || (cp >= 0x3040 && cp <= 0x33FF) ||
+		   (cp >= 0x3400 && cp <= 0x4DBF) || (cp >= 0x4E00 && cp <= 0xA4CF) ||
+		   (cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0xF900 && cp <= 0xFAFF) ||
+		   (cp >= 0xFE10 && cp <= 0xFE19) || (cp >= 0xFE30 && cp <= 0xFE4F) ||
+		   (cp >= 0xFF00 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+		   (cp >= 0x1F300 && cp <= 0x1F9FF) ||
+		   (cp >= 0x20000 && cp <= 0x2FFFD) || (cp >= 0x30000 && cp <= 0x3FFFD);
+}
+
+bool IsTerminalControl(uint32_t cp)
+{
+	return cp == 0 || (cp < 32 && cp != '\t') || (cp >= 0x7F && cp < 0xA0);
+}
+
+bool IsDisplayFormatting(uint32_t cp)
+{
+	return cp == 0x00AD || cp == 0x200B || cp == 0x200C || cp == 0x200D ||
+		   cp == 0x200E || cp == 0x200F || (cp >= 0x202A && cp <= 0x202E) ||
+		   (cp >= 0x2060 && cp <= 0x2069) || cp == 0xFEFF;
 }
 
 // Total terminal column width of a UTF-8 string.
@@ -74,6 +99,39 @@ std::string Utf8TruncateToCols(std::string_view str, int cols)
 
 } // namespace
 
+std::string SanitizeForTerminal(std::string_view str)
+{
+	std::string sanitized;
+	sanitized.reserve(str.size());
+
+	size_t pos = 0;
+	while (pos < str.size())
+	{
+		size_t charStart = pos;
+		uint32_t cp = Utf8Decode(str, pos);
+		size_t charEnd = pos;
+
+		if (cp == '\n' || cp == '\r')
+		{
+			sanitized.push_back(' ');
+			continue;
+		}
+
+		if (cp == 0xFFFD && charEnd - charStart == 1)
+		{
+			sanitized.push_back('?');
+			continue;
+		}
+
+		if (IsTerminalControl(cp) || IsDisplayFormatting(cp))
+			continue;
+
+		sanitized.append(str.substr(charStart, charEnd - charStart));
+	}
+
+	return sanitized;
+}
+
 std::string PadRight(const std::string& str, int width)
 {
 	int displayWidth = Utf8DisplayWidth(str);
@@ -89,7 +147,8 @@ std::string CenterText(const std::string& str, int width)
 		return Utf8TruncateToCols(str, width);
 	int leftPad = (width - len) / 2;
 	int rightPad = width - len - leftPad;
-	return std::string(static_cast<size_t>(leftPad), ' ') + str + std::string(static_cast<size_t>(rightPad), ' ');
+	return std::string(static_cast<size_t>(leftPad), ' ') + str +
+		   std::string(static_cast<size_t>(rightPad), ' ');
 }
 
 } // namespace ui

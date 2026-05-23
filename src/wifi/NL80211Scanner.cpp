@@ -1,20 +1,20 @@
 #include "NL80211Scanner.hpp"
 #include "IE.hpp"
-#include <netlink/netlink.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/ctrl.h>
-#include <netlink/attr.h>
-#include <linux/nl80211.h>
-#include <net/if.h>
-#include <poll.h>
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <climits>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <format>
-#include <chrono>
-#include <cstring>
+#include <linux/nl80211.h>
+#include <net/if.h>
+#include <netlink/attr.h>
+#include <netlink/genl/ctrl.h>
+#include <netlink/genl/genl.h>
+#include <netlink/netlink.h>
+#include <poll.h>
 
 namespace wifi
 {
@@ -26,16 +26,57 @@ namespace
 // remain valid for the lifetime of the surrounding netlink message buffer.
 struct ParsedIes
 {
-	const uint8_t* ht       {nullptr}; uint8_t  htLen   {0};
-	const uint8_t* htOp     {nullptr}; uint8_t  htOpLen {0};
-	const uint8_t* vht      {nullptr}; uint8_t  vhtLen  {0};
-	const uint8_t* vhtOp    {nullptr}; uint8_t  vhtOpLen{0};
-	const uint8_t* rsn      {nullptr}; uint16_t rsnLen  {0};
-	const uint8_t* bssLoad  {nullptr}; uint8_t  bssLoadLen {0};
-	const uint8_t* wpa1     {nullptr}; uint16_t wpa1Len {0};
-	bool he   {false};
-	bool eht  {false};
+	const uint8_t* ht{nullptr};
+	uint8_t htLen{0};
+	const uint8_t* htOp{nullptr};
+	uint8_t htOpLen{0};
+	const uint8_t* vht{nullptr};
+	uint8_t vhtLen{0};
+	const uint8_t* vhtOp{nullptr};
+	uint8_t vhtOpLen{0};
+	const uint8_t* rsn{nullptr};
+	uint16_t rsnLen{0};
+	const uint8_t* bssLoad{nullptr};
+	uint8_t bssLoadLen{0};
+	const uint8_t* wpa1{nullptr};
+	uint16_t wpa1Len{0};
+	bool he{false};
+	bool eht{false};
 };
+
+bool AttrHasLen(nlattr* attr, int minLength)
+{
+	return attr && nla_len(attr) >= minLength;
+}
+
+std::string LibnlFailure(const char* operation, int result)
+{
+	return std::format("{} ({})", operation, result);
+}
+
+bool TryGetU32(nlattr* attr, uint32_t& out)
+{
+	if (!AttrHasLen(attr, static_cast<int>(sizeof(uint32_t))))
+		return false;
+	out = nla_get_u32(attr);
+	return true;
+}
+
+bool TryGetS32(nlattr* attr, int32_t& out)
+{
+	if (!AttrHasLen(attr, static_cast<int>(sizeof(int32_t))))
+		return false;
+	out = nla_get_s32(attr);
+	return true;
+}
+
+bool TryGetU16(nlattr* attr, uint16_t& out)
+{
+	if (!AttrHasLen(attr, static_cast<int>(sizeof(uint16_t))))
+		return false;
+	out = nla_get_u16(attr);
+	return true;
+}
 
 ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 {
@@ -51,82 +92,85 @@ ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 
 		switch (elementType)
 		{
-			case ie::SSID:
-				if (elementLength == 0)
-					ssidOut = "<hidden>";
-				else
-					ssidOut.assign(reinterpret_cast<const char*>(payload), elementLength);
-				break;
+		case ie::SSID:
+			if (elementLength == 0)
+				ssidOut = "<hidden>";
+			else
+				ssidOut.assign(reinterpret_cast<const char*>(payload),
+							   elementLength);
+			break;
 
-			case ie::BSS_LOAD:
-				if (elementLength >= 5)
-				{
-					out.bssLoad = payload;
-					out.bssLoadLen = elementLength;
-				}
-				break;
+		case ie::BSS_LOAD:
+			if (elementLength >= 5)
+			{
+				out.bssLoad = payload;
+				out.bssLoadLen = elementLength;
+			}
+			break;
 
-			case ie::HT_CAPABILITY:
-				if (elementLength >= 26)
-				{
-					out.ht = payload;
-					out.htLen = elementLength;
-				}
-				break;
+		case ie::HT_CAPABILITY:
+			if (elementLength >= 26)
+			{
+				out.ht = payload;
+				out.htLen = elementLength;
+			}
+			break;
 
-			case ie::HT_OPERATION:
-				if (elementLength >= 22)
-				{
-					out.htOp = payload;
-					out.htOpLen = elementLength;
-				}
-				break;
+		case ie::HT_OPERATION:
+			if (elementLength >= 22)
+			{
+				out.htOp = payload;
+				out.htOpLen = elementLength;
+			}
+			break;
 
-			case ie::RSN:
-				out.rsn = payload;
-				out.rsnLen = elementLength;
-				break;
+		case ie::RSN:
+			out.rsn = payload;
+			out.rsnLen = elementLength;
+			break;
 
-			case ie::VHT_CAPABILITY:
-				if (elementLength >= 12)
-				{
-					out.vht = payload;
-					out.vhtLen = elementLength;
-				}
-				break;
+		case ie::VHT_CAPABILITY:
+			if (elementLength >= 12)
+			{
+				out.vht = payload;
+				out.vhtLen = elementLength;
+			}
+			break;
 
-			case ie::VHT_OPERATION:
-				if (elementLength >= 5)
-				{
-					out.vhtOp = payload;
-					out.vhtOpLen = elementLength;
-				}
-				break;
+		case ie::VHT_OPERATION:
+			if (elementLength >= 5)
+			{
+				out.vhtOp = payload;
+				out.vhtOpLen = elementLength;
+			}
+			break;
 
-			case ie::VENDOR_SPECIFIC:
-				// WPA1 vendor IE: Microsoft OUI + type 1 + version.
-				if (elementLength >= 4
-				    && std::memcmp(payload, ie::OUI_MICROSOFT, 3) == 0
-				    && payload[3] == 0x01)
-				{
-					out.wpa1 = payload;
-					out.wpa1Len = elementLength;
-				}
-				break;
+		case ie::VENDOR_SPECIFIC:
+			// WPA1 vendor IE: Microsoft OUI + type 1 + version.
+			if (elementLength >= 4 &&
+				std::memcmp(payload, ie::OUI_MICROSOFT, 3) == 0 &&
+				payload[3] == 0x01)
+			{
+				out.wpa1 = payload;
+				out.wpa1Len = elementLength;
+			}
+			break;
 
-			case ie::EXTENSION:
-				if (elementLength >= 1)
-				{
-					uint8_t extId = payload[0];
-					if (extId == ie::EXT_HE_CAPABILITY || extId == ie::EXT_HE_OPERATION)
-						out.he = true;
-					else if (extId == ie::EXT_EHT_CAPABILITY || extId == ie::EXT_EHT_OPERATION)
-						out.eht = true;
-				}
-				break;
+		case ie::EXTENSION:
+			if (elementLength >= 1)
+			{
+				uint8_t extId = payload[0];
+				if (extId == ie::EXT_HE_CAPABILITY ||
+					extId == ie::EXT_HE_OPERATION)
+					out.he = true;
+				else if (extId == ie::EXT_EHT_CAPABILITY ||
+						 extId == ie::EXT_EHT_OPERATION)
+					out.eht = true;
+			}
+			break;
 
-			default:
-				break;
+		default:
+			break;
 		}
 
 		position += 2 + elementLength;
@@ -134,27 +178,35 @@ ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 	return out;
 }
 
-// Maps NL80211_BSS_CHAN_WIDTH enum → MHz (0 if not a recognised real-air width).
+// Maps NL80211_BSS_CHAN_WIDTH enum → MHz (0 if not a recognised real-air
+// width).
 uint16_t WidthFromNlCode(uint32_t code)
 {
 	switch (code)
 	{
-		case NL80211_CHAN_WIDTH_20_NOHT:
-		case NL80211_CHAN_WIDTH_20:    return 20;
-		case NL80211_CHAN_WIDTH_40:    return 40;
-		case NL80211_CHAN_WIDTH_80:    return 80;
-		case NL80211_CHAN_WIDTH_80P80:
-		case NL80211_CHAN_WIDTH_160:   return 160;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		return 20;
+	case NL80211_CHAN_WIDTH_40:
+		return 40;
+	case NL80211_CHAN_WIDTH_80:
+		return 80;
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		return 160;
 #ifdef NL80211_CHAN_WIDTH_320
-		case NL80211_CHAN_WIDTH_320:   return 320;
+	case NL80211_CHAN_WIDTH_320:
+		return 320;
 #endif
-		default: return 0;
+	default:
+		return 0;
 	}
 }
 
-// Resolves (widthMhz, centerFreq1Mhz). Priority: kernel attr → VHT Op IE → HT Op IE → 20.
-void DeriveWidth(uint32_t nlWidthCode, const ParsedIes& parsed,
-                 Band band, uint16_t& outWidthMhz, uint32_t& outCenterFreq1Mhz)
+// Resolves (widthMhz, centerFreq1Mhz). Priority: kernel attr → VHT Op IE → HT
+// Op IE → 20.
+void DeriveWidth(uint32_t nlWidthCode, const ParsedIes& parsed, Band band,
+				 uint16_t& outWidthMhz, uint32_t& outCenterFreq1Mhz)
 {
 	outWidthMhz = 0;
 	outCenterFreq1Mhz = 0;
@@ -185,9 +237,11 @@ void DeriveWidth(uint32_t nlWidthCode, const ParsedIes& parsed,
 
 		if (chWidth == 1)
 		{
-			if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) - static_cast<int>(ccfs0)) == 8)
+			if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) -
+									   static_cast<int>(ccfs0)) == 8)
 				outWidthMhz = 160;
-			else if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) - static_cast<int>(ccfs0)) == 16)
+			else if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) -
+											static_cast<int>(ccfs0)) == 16)
 				outWidthMhz = 160; // treat 80+80 like 160 for the rate table
 			else
 				outWidthMhz = 80;
@@ -221,12 +275,18 @@ void DeriveWidth(uint32_t nlWidthCode, const ParsedIes& parsed,
 
 WifiStandard DeriveStandard(const ParsedIes& parsed, Band band)
 {
-	if (parsed.eht) return WifiStandard::BE;
-	if (parsed.he)  return WifiStandard::AX;
-	if (parsed.vht) return WifiStandard::AC;
-	if (parsed.ht || parsed.htOp) return WifiStandard::N;
-	if (band == Band::GHz2_4) return WifiStandard::G;
-	if (band == Band::GHz5 || band == Band::GHz6) return WifiStandard::A;
+	if (parsed.eht)
+		return WifiStandard::BE;
+	if (parsed.he)
+		return WifiStandard::AX;
+	if (parsed.vht)
+		return WifiStandard::AC;
+	if (parsed.ht || parsed.htOp)
+		return WifiStandard::N;
+	if (band == Band::GHz2_4)
+		return WifiStandard::G;
+	if (band == Band::GHz5 || band == Band::GHz6)
+		return WifiStandard::A;
 	return WifiStandard::Unknown;
 }
 
@@ -250,7 +310,8 @@ Security DeriveSecurity(const ParsedIes& parsed, uint16_t capabilityBits)
 		return Security::Unknown;
 
 	size_t offset = 2 + 4;
-	uint16_t pairwiseCount = static_cast<uint16_t>(p[offset] | (p[offset + 1] << 8));
+	uint16_t pairwiseCount =
+		static_cast<uint16_t>(p[offset] | (p[offset + 1] << 8));
 	offset += 2;
 	size_t pairwiseBytes = static_cast<size_t>(pairwiseCount) * 4U;
 	if (offset + pairwiseBytes + 2 > len)
@@ -271,18 +332,31 @@ Security DeriveSecurity(const ParsedIes& parsed, uint16_t capabilityBits)
 			continue;
 		switch (suite[3])
 		{
-			case 1:  eap = true; break;
-			case 2:  psk = true; break;
-			case 8:  sae = true; break;
-			case 18: owe = true; break;
-			default: break;
+		case 1:
+			eap = true;
+			break;
+		case 2:
+			psk = true;
+			break;
+		case 8:
+			sae = true;
+			break;
+		case 18:
+			owe = true;
+			break;
+		default:
+			break;
 		}
 	}
 
-	if (sae && psk) return Security::WPA2_WPA3_Transition;
-	if (sae)        return Security::WPA3_SAE;
-	if (owe)        return Security::OWE;
-	if (eap)        return Security::WPA2_Enterprise;
+	if (sae && psk)
+		return Security::WPA2_WPA3_Transition;
+	if (sae)
+		return Security::WPA3_SAE;
+	if (owe)
+		return Security::OWE;
+	if (eap)
+		return Security::WPA2_Enterprise;
 	return Security::WPA2_Personal;
 }
 
@@ -290,10 +364,12 @@ uint8_t DeriveSpatialStreams(const ParsedIes& parsed)
 {
 	uint8_t streams = 0;
 
-	// VHT RX MCS Map: 2-bit field per stream × 8 streams; 0b11 (3) = unsupported.
+	// VHT RX MCS Map: 2-bit field per stream × 8 streams; 0b11 (3) =
+	// unsupported.
 	if (parsed.vht && parsed.vhtLen >= 6)
 	{
-		uint16_t rxMcsMap = static_cast<uint16_t>(parsed.vht[4] | (parsed.vht[5] << 8));
+		uint16_t rxMcsMap =
+			static_cast<uint16_t>(parsed.vht[4] | (parsed.vht[5] << 8));
 		for (uint8_t i = 0; i < 8; i++)
 		{
 			uint8_t field = static_cast<uint8_t>((rxMcsMap >> (i * 2)) & 0x3);
@@ -316,7 +392,8 @@ uint8_t DeriveSpatialStreams(const ParsedIes& parsed)
 	return streams;
 }
 
-uint32_t DeriveMaxRate(WifiStandard standard, uint16_t widthMhz, uint8_t streams)
+uint32_t DeriveMaxRate(WifiStandard standard, uint16_t widthMhz,
+					   uint8_t streams)
 {
 	if (streams == 0 || widthMhz == 0)
 		return 0;
@@ -327,31 +404,46 @@ uint32_t DeriveMaxRate(WifiStandard standard, uint16_t widthMhz, uint8_t streams
 	{
 		switch (standard)
 		{
-			case WifiStandard::N:
-				if (widthMhz == 20) return 72;
-				if (widthMhz == 40) return 150;
-				return 0;
-			case WifiStandard::AC:
-				if (widthMhz == 20)  return 87;
-				if (widthMhz == 40)  return 200;
-				if (widthMhz == 80)  return 433;
-				if (widthMhz == 160) return 867;
-				return 0;
-			case WifiStandard::AX:
-				if (widthMhz == 20)  return 143;
-				if (widthMhz == 40)  return 287;
-				if (widthMhz == 80)  return 600;
-				if (widthMhz == 160) return 1201;
-				return 0;
-			case WifiStandard::BE:
-				if (widthMhz == 20)  return 172;
-				if (widthMhz == 40)  return 344;
-				if (widthMhz == 80)  return 721;
-				if (widthMhz == 160) return 1441;
-				if (widthMhz == 320) return 2882;
-				return 0;
-			default:
-				return 0;
+		case WifiStandard::N:
+			if (widthMhz == 20)
+				return 72;
+			if (widthMhz == 40)
+				return 150;
+			return 0;
+		case WifiStandard::AC:
+			if (widthMhz == 20)
+				return 87;
+			if (widthMhz == 40)
+				return 200;
+			if (widthMhz == 80)
+				return 433;
+			if (widthMhz == 160)
+				return 867;
+			return 0;
+		case WifiStandard::AX:
+			if (widthMhz == 20)
+				return 143;
+			if (widthMhz == 40)
+				return 287;
+			if (widthMhz == 80)
+				return 600;
+			if (widthMhz == 160)
+				return 1201;
+			return 0;
+		case WifiStandard::BE:
+			if (widthMhz == 20)
+				return 172;
+			if (widthMhz == 40)
+				return 344;
+			if (widthMhz == 80)
+				return 721;
+			if (widthMhz == 160)
+				return 1441;
+			if (widthMhz == 320)
+				return 2882;
+			return 0;
+		default:
+			return 0;
 		}
 	}();
 
@@ -363,7 +455,8 @@ uint32_t DeriveMaxRate(WifiStandard standard, uint16_t widthMhz, uint8_t streams
 std::vector<std::string> FindWirelessInterfaces()
 {
 	std::vector<std::string> interfaces;
-	for (const auto& entry : std::filesystem::directory_iterator("/sys/class/net"))
+	for (const auto& entry :
+		 std::filesystem::directory_iterator("/sys/class/net"))
 	{
 		if (std::filesystem::exists(entry.path() / "wireless"))
 			interfaces.push_back(entry.path().filename().string());
@@ -386,10 +479,7 @@ NL80211Scanner::NL80211Scanner(std::string ifaceName)
 	InitNl();
 }
 
-NL80211Scanner::~NL80211Scanner()
-{
-	CleanupNl();
-}
+NL80211Scanner::~NL80211Scanner() { CleanupNl(); }
 
 void NL80211Scanner::InitNl()
 {
@@ -430,16 +520,22 @@ void NL80211Scanner::CleanupNl() noexcept
 
 bool NL80211Scanner::TriggerScan()
 {
+	bool triggerAccepted = false;
+
 	// Subscribe to the nl80211 "scan" multicast group on a dedicated socket so
 	// we can receive the NL80211_CMD_NEW_SCAN_RESULTS event without interfering
 	// with the command socket used for NL80211_CMD_TRIGGER_SCAN / GET_SCAN.
 	nl_sock* mcSock = nl_socket_alloc();
 	if (!mcSock)
+	{
+		_lastError = "Failed to allocate multicast netlink socket";
 		return false;
+	}
 
 	nl_socket_disable_seq_check(mcSock);
 	if (genl_connect(mcSock) < 0)
 	{
+		_lastError = "Failed to connect multicast netlink socket";
 		nl_socket_free(mcSock);
 		return false;
 	}
@@ -447,34 +543,81 @@ bool NL80211Scanner::TriggerScan()
 	int mcGroup = genl_ctrl_resolve_grp(mcSock, "nl80211", "scan");
 	if (mcGroup < 0)
 	{
+		_lastError = LibnlFailure(
+			"Failed to resolve nl80211 scan multicast group", mcGroup);
 		nl_socket_free(mcSock);
 		return false;
 	}
 
-	nl_socket_add_membership(mcSock, mcGroup);
+	int membershipResult = nl_socket_add_membership(mcSock, mcGroup);
+	if (membershipResult < 0)
+	{
+		_lastError = LibnlFailure("Failed to subscribe to nl80211 scan events",
+								  membershipResult);
+		nl_socket_free(mcSock);
+		return false;
+	}
 	nl_socket_set_nonblocking(mcSock);
 
 	// Build the trigger-scan command. NLM_F_ACK ensures the kernel always sends
-	// a reply (ACK on success, NLMSG_ERROR on failure) so nl_recvmsgs terminates.
+	// a reply (ACK on success, NLMSG_ERROR on failure) so nl_recvmsgs
+	// terminates.
 	nl_msg* triggerMsg = nlmsg_alloc();
 	if (!triggerMsg)
 	{
+		_lastError = "Failed to allocate trigger-scan netlink message";
 		nl_socket_free(mcSock);
 		return false;
 	}
 
-	genlmsg_put(triggerMsg, NL_AUTO_PORT, NL_AUTO_SEQ, _nl80211Id, 0,
-	            NLM_F_ACK, NL80211_CMD_TRIGGER_SCAN, 0);
-	nla_put_u32(triggerMsg, NL80211_ATTR_IFINDEX, static_cast<uint32_t>(_ifindex));
+	if (!genlmsg_put(triggerMsg, NL_AUTO_PORT, NL_AUTO_SEQ, _nl80211Id, 0,
+					 NLM_F_ACK, NL80211_CMD_TRIGGER_SCAN, 0))
+	{
+		_lastError = "Failed to initialize trigger-scan message";
+		nlmsg_free(triggerMsg);
+		nl_socket_free(mcSock);
+		return false;
+	}
+
+	int ifindexResult = nla_put_u32(triggerMsg, NL80211_ATTR_IFINDEX,
+									static_cast<uint32_t>(_ifindex));
+	if (ifindexResult < 0)
+	{
+		_lastError = LibnlFailure(
+			"Failed to encode trigger-scan interface index", ifindexResult);
+		nlmsg_free(triggerMsg);
+		nl_socket_free(mcSock);
+		return false;
+	}
 
 	// One empty (wildcard) SSID → kernel sends probe requests on every channel
 	// (active scan). Without this the kernel only does a passive scan.
 	nlattr* ssidNest = nla_nest_start(triggerMsg, NL80211_ATTR_SCAN_SSIDS);
-	nla_put(triggerMsg, 1, 0, "");
+	if (!ssidNest)
+	{
+		_lastError = "Failed to start trigger-scan SSID list";
+		nlmsg_free(triggerMsg);
+		nl_socket_free(mcSock);
+		return false;
+	}
+
+	int ssidResult = nla_put(triggerMsg, 1, 0, "");
+	if (ssidResult < 0)
+	{
+		nla_nest_cancel(triggerMsg, ssidNest);
+		_lastError =
+			LibnlFailure("Failed to encode wildcard scan SSID", ssidResult);
+		nlmsg_free(triggerMsg);
+		nl_socket_free(mcSock);
+		return false;
+	}
 	nla_nest_end(triggerMsg, ssidNest);
 
-	if (nl_send_auto(_sock, triggerMsg) < 0)
+	int sendResult = nl_send_auto(_sock, triggerMsg);
+	if (sendResult < 0)
 	{
+		_lastError =
+			LibnlFailure("Failed to send trigger-scan command", sendResult);
 		nlmsg_free(triggerMsg);
 		nl_socket_free(mcSock);
 		return false;
@@ -487,21 +630,35 @@ bool NL80211Scanner::TriggerScan()
 	nl_cb* ackCb = nl_cb_alloc(NL_CB_DEFAULT);
 	if (ackCb)
 	{
-		nl_cb_set(ackCb, NL_CB_ACK,   NL_CB_CUSTOM, NlTriggerAckCallback,   this);
-		nl_cb_err(ackCb, NL_CB_CUSTOM,               NlTriggerErrorCallback, this);
-		nl_recvmsgs(_sock, ackCb);
+		nl_cb_set(ackCb, NL_CB_ACK, NL_CB_CUSTOM, NlTriggerAckCallback, this);
+		nl_cb_err(ackCb, NL_CB_CUSTOM, NlTriggerErrorCallback, this);
+		int ackResult = nl_recvmsgs(_sock, ackCb);
+		if (ackResult < 0 && _triggerErrno == 0)
+			_lastError = LibnlFailure(
+				"Failed while waiting for trigger-scan acknowledgement",
+				ackResult);
 		nl_cb_put(ackCb);
 	}
-
-	// Hard error (not EBUSY): give up — GET_SCAN will also fail and show the error.
-	if (_triggerErrno != 0 && _triggerErrno != EBUSY)
+	else
 	{
+		_lastError = "Failed to allocate trigger-scan callback";
 		nl_socket_free(mcSock);
 		return false;
 	}
 
+	// Hard error (not EBUSY): give up — GET_SCAN will also fail and show the
+	// error.
+	if (_triggerErrno != 0 && _triggerErrno != EBUSY)
+	{
+		_lastError = std::format("Trigger scan failed ({})", _triggerErrno);
+		nl_socket_free(mcSock);
+		return false;
+	}
+
+	triggerAccepted = _triggerAcked || _triggerErrno == EBUSY;
+
 	// Poll the multicast socket until the kernel signals scan completion.
-	_scanDone    = false;
+	_scanDone = false;
 	_scanAborted = false;
 	nl_cb* mcCb = nl_cb_alloc(NL_CB_DEFAULT);
 	if (mcCb)
@@ -509,62 +666,146 @@ bool NL80211Scanner::TriggerScan()
 		nl_cb_set(mcCb, NL_CB_VALID, NL_CB_CUSTOM, NlScanEventCallback, this);
 
 		int fd = nl_socket_get_fd(mcSock);
-		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+		auto deadline =
+			std::chrono::steady_clock::now() + std::chrono::seconds(15);
 
 		while (!_scanDone && !_scanAborted)
 		{
-			auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
-			    deadline - std::chrono::steady_clock::now()).count();
+			auto remaining =
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					deadline - std::chrono::steady_clock::now())
+					.count();
 			if (remaining <= 0)
 				break;
 
 			pollfd pfd{fd, POLLIN, 0};
-			if (poll(&pfd, 1, static_cast<int>(std::min(remaining, 500L))) > 0)
-				nl_recvmsgs(mcSock, mcCb);
+			int pollResult =
+				poll(&pfd, 1, static_cast<int>(std::min(remaining, 500L)));
+			if (pollResult < 0)
+			{
+				_lastError = std::format(
+					"Failed while waiting for scan events ({})", errno);
+				break;
+			}
+			if (pollResult > 0)
+			{
+				int eventResult = nl_recvmsgs(mcSock, mcCb);
+				if (eventResult == -NLE_AGAIN)
+					continue;
+				if (eventResult < 0)
+				{
+					_lastError = LibnlFailure(
+						"Failed while receiving scan events", eventResult);
+					break;
+				}
+			}
 		}
 
 		nl_cb_put(mcCb);
 	}
+	else
+	{
+		_lastError = "Failed to allocate scan-event callback";
+		nl_socket_free(mcSock);
+		return false;
+	}
 
 	nl_socket_free(mcSock);
-	return _scanDone;
+	if (_scanAborted && _lastError.empty())
+		_lastError = "Kernel reported scan aborted";
+	if (_scanAborted)
+		return false;
+	if (_scanDone)
+		return true;
+	if (!_lastError.empty())
+		return false;
+
+	// Some drivers update the cached BSS table without delivering an observable
+	// multicast completion event to this socket. Treat an accepted trigger as a
+	// successful refresh attempt instead of surfacing a false cached-result
+	// error.
+	return triggerAccepted;
 }
 
 std::vector<Network> NL80211Scanner::GetNetworks()
 {
 	_pendingScanResults.clear();
 	_lastError.clear();
+	_lastFetchState = ScanFetchState::Unknown;
 
 	if (_coldStart)
+	{
 		_coldStart = false;
+		_lastFetchState = ScanFetchState::Cached;
+	}
 	else
-		TriggerScan();
+		_lastFetchState =
+			TriggerScan() ? ScanFetchState::Fresh : ScanFetchState::Cached;
 
 	nl_msg* message = nlmsg_alloc();
 	if (!message)
 	{
 		_lastError = "Failed to allocate netlink message";
+		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
-	genlmsg_put(message, NL_AUTO_PORT, NL_AUTO_SEQ, _nl80211Id, 0,
-	            NLM_F_DUMP, NL80211_CMD_GET_SCAN, 0);
-	nla_put_u32(message, NL80211_ATTR_IFINDEX, static_cast<uint32_t>(_ifindex));
+	if (!genlmsg_put(message, NL_AUTO_PORT, NL_AUTO_SEQ, _nl80211Id, 0,
+					 NLM_F_DUMP, NL80211_CMD_GET_SCAN, 0))
+	{
+		nlmsg_free(message);
+		_lastError = "Failed to initialize GET_SCAN message";
+		_lastFetchState = ScanFetchState::Unknown;
+		return {};
+	}
+
+	int ifindexResult = nla_put_u32(message, NL80211_ATTR_IFINDEX,
+									static_cast<uint32_t>(_ifindex));
+	if (ifindexResult < 0)
+	{
+		nlmsg_free(message);
+		_lastError = LibnlFailure("Failed to encode GET_SCAN interface index",
+								  ifindexResult);
+		_lastFetchState = ScanFetchState::Unknown;
+		return {};
+	}
 
 	nl_cb* callback = nl_cb_alloc(NL_CB_DEFAULT);
 	if (!callback)
 	{
 		nlmsg_free(message);
 		_lastError = "Failed to allocate netlink callback";
+		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
-	nl_cb_set(callback, NL_CB_VALID,  NL_CB_CUSTOM, NlBssMessageCallback,   this);
-	nl_cb_set(callback, NL_CB_FINISH, NL_CB_CUSTOM, NlDumpFinishedCallback, this);
+	nl_cb_set(callback, NL_CB_VALID, NL_CB_CUSTOM, NlBssMessageCallback, this);
+	nl_cb_set(callback, NL_CB_FINISH, NL_CB_CUSTOM, NlDumpFinishedCallback,
+			  this);
 	nl_cb_err(callback, NL_CB_CUSTOM, NlErrorCallback, this);
 
-	nl_send_auto(_sock, message);
-	nl_recvmsgs(_sock, callback);
+	int sendResult = nl_send_auto(_sock, message);
+	if (sendResult < 0)
+	{
+		nlmsg_free(message);
+		nl_cb_put(callback);
+		_lastError =
+			LibnlFailure("Failed to send GET_SCAN request", sendResult);
+		_lastFetchState = ScanFetchState::Unknown;
+		return {};
+	}
+
+	int recvResult = nl_recvmsgs(_sock, callback);
+	if (recvResult < 0)
+	{
+		nlmsg_free(message);
+		nl_cb_put(callback);
+		if (_lastError.empty())
+			_lastError =
+				LibnlFailure("Failed to receive GET_SCAN results", recvResult);
+		_lastFetchState = ScanFetchState::Unknown;
+		return {};
+	}
 
 	nlmsg_free(message);
 	nl_cb_put(callback);
@@ -575,56 +816,60 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 {
 	struct nlmsghdr* header = nlmsg_hdr(message);
-	struct genlmsghdr* genlHeader = static_cast<genlmsghdr*>(nlmsg_data(header));
+	struct genlmsghdr* genlHeader =
+		static_cast<genlmsghdr*>(nlmsg_data(header));
 
 	struct nlattr* topLevelAttrs[NL80211_ATTR_MAX + 1] = {};
-	nla_parse(topLevelAttrs, NL80211_ATTR_MAX,
-	          genlmsg_attrdata(genlHeader, 0), genlmsg_attrlen(genlHeader, 0), nullptr);
+	nla_parse(topLevelAttrs, NL80211_ATTR_MAX, genlmsg_attrdata(genlHeader, 0),
+			  genlmsg_attrlen(genlHeader, 0), nullptr);
 
 	if (!topLevelAttrs[NL80211_ATTR_BSS])
 		return NL_SKIP;
 
 	struct nlattr* bssAttrs[NL80211_BSS_MAX + 1] = {};
-	nla_parse_nested(bssAttrs, NL80211_BSS_MAX, topLevelAttrs[NL80211_ATTR_BSS], nullptr);
+	nla_parse_nested(bssAttrs, NL80211_BSS_MAX, topLevelAttrs[NL80211_ATTR_BSS],
+					 nullptr);
 
 	Network network{};
 
-	if (bssAttrs[NL80211_BSS_SIGNAL_MBM])
-		network._signalDbm = nla_get_s32(bssAttrs[NL80211_BSS_SIGNAL_MBM]) / 100;
+	int32_t signalMbm = 0;
+	if (TryGetS32(bssAttrs[NL80211_BSS_SIGNAL_MBM], signalMbm))
+		network._signalDbm = signalMbm / 100;
 
-	if (bssAttrs[NL80211_BSS_FREQUENCY])
-		network._frequency = nla_get_u32(bssAttrs[NL80211_BSS_FREQUENCY]);
+	TryGetU32(bssAttrs[NL80211_BSS_FREQUENCY], network._frequency);
 
 	uint32_t nlWidthCode = UINT32_MAX;
-	if (bssAttrs[NL80211_BSS_CHAN_WIDTH])
-		nlWidthCode = nla_get_u32(bssAttrs[NL80211_BSS_CHAN_WIDTH]);
+	TryGetU32(bssAttrs[NL80211_BSS_CHAN_WIDTH], nlWidthCode);
 
 	uint16_t capabilityBits = 0;
-	if (bssAttrs[NL80211_BSS_CAPABILITY])
-		capabilityBits = nla_get_u16(bssAttrs[NL80211_BSS_CAPABILITY]);
+	TryGetU16(bssAttrs[NL80211_BSS_CAPABILITY], capabilityBits);
 
-	if (bssAttrs[NL80211_BSS_BSSID])
+	if (AttrHasLen(bssAttrs[NL80211_BSS_BSSID], 6))
 	{
-		auto* macBytes = static_cast<uint8_t*>(nla_data(bssAttrs[NL80211_BSS_BSSID]));
-		network._bssid = std::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-		    macBytes[0], macBytes[1], macBytes[2],
-		    macBytes[3], macBytes[4], macBytes[5]);
+		auto* macBytes =
+			static_cast<uint8_t*>(nla_data(bssAttrs[NL80211_BSS_BSSID]));
+		network._bssid = std::format(
+			"{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", macBytes[0],
+			macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
 	}
 
 	// IE blob layout: repeated [elementType:u8][length:u8][data:length bytes].
 	// ScanIes walks every IE (no early-break) and pulls SSID, BSS Load and the
-	// capability/operation IEs we use for width/standard/security/rate derivation.
+	// capability/operation IEs we use for width/standard/security/rate
+	// derivation.
 	ParsedIes parsed{};
-	if (bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS])
+	if (bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS] &&
+		nla_len(bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS]) > 0)
 	{
-		auto* ieData = static_cast<uint8_t*>(nla_data(bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS]));
+		auto* ieData = static_cast<uint8_t*>(
+			nla_data(bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS]));
 		int ieLength = nla_len(bssAttrs[NL80211_BSS_INFORMATION_ELEMENTS]);
 		parsed = ScanIes(ieData, ieLength, network._ssid);
 	}
 
-	if (bssAttrs[NL80211_BSS_STATUS])
+	uint32_t status = 0;
+	if (TryGetU32(bssAttrs[NL80211_BSS_STATUS], status))
 	{
-		uint32_t status = nla_get_u32(bssAttrs[NL80211_BSS_STATUS]);
 		network._connected = (status == NL80211_BSS_STATUS_ASSOCIATED);
 	}
 
@@ -633,16 +878,18 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 
 	if (parsed.bssLoad && parsed.bssLoadLen >= 5)
 	{
-		network._stationCount = static_cast<int16_t>(parsed.bssLoad[0] | (parsed.bssLoad[1] << 8));
+		network._stationCount =
+			static_cast<int16_t>(parsed.bssLoad[0] | (parsed.bssLoad[1] << 8));
 		network._channelUtilization = static_cast<int16_t>(parsed.bssLoad[2]);
 	}
 
-	DeriveWidth(nlWidthCode, parsed, network._band,
-	            network._widthMhz, network._centerFreq1Mhz);
+	DeriveWidth(nlWidthCode, parsed, network._band, network._widthMhz,
+				network._centerFreq1Mhz);
 	network._standard = DeriveStandard(parsed, network._band);
 	network._security = DeriveSecurity(parsed, capabilityBits);
 	network._spatialStreams = DeriveSpatialStreams(parsed);
-	network._maxRateMbps = DeriveMaxRate(network._standard, network._widthMhz, network._spatialStreams);
+	network._maxRateMbps = DeriveMaxRate(network._standard, network._widthMhz,
+										 network._spatialStreams);
 
 	_pendingScanResults.push_back(network);
 	return NL_OK;
@@ -650,21 +897,24 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 
 void NL80211Scanner::StoreNlError(nlmsgerr* error)
 {
-	_lastError = std::format("Netlink error: {} ({})",
-	    strerror(-error->error), -error->error);
+	_lastError = std::format("Netlink error: {} ({})", strerror(-error->error),
+							 -error->error);
 }
 
 int NL80211Scanner::NlBssMessageCallback(nl_msg* message, void* scannerInstance)
 {
-	return static_cast<NL80211Scanner*>(scannerInstance)->ProcessBssMessage(message);
+	return static_cast<NL80211Scanner*>(scannerInstance)
+		->ProcessBssMessage(message);
 }
 
-int NL80211Scanner::NlDumpFinishedCallback(nl_msg* /*message*/, void* /*scannerInstance*/)
+int NL80211Scanner::NlDumpFinishedCallback(nl_msg* /*message*/,
+										   void* /*scannerInstance*/)
 {
 	return NL_STOP;
 }
 
-int NL80211Scanner::NlErrorCallback(sockaddr_nl* /*sourceAddress*/, nlmsgerr* error, void* scannerInstance)
+int NL80211Scanner::NlErrorCallback(sockaddr_nl* /*sourceAddress*/,
+									nlmsgerr* error, void* scannerInstance)
 {
 	static_cast<NL80211Scanner*>(scannerInstance)->StoreNlError(error);
 	return NL_STOP;
@@ -686,21 +936,26 @@ int NL80211Scanner::ProcessScanEvent(nl_msg* message)
 	return NL_SKIP;
 }
 
-int NL80211Scanner::NlTriggerAckCallback(nl_msg* /*message*/, void* scannerInstance)
+int NL80211Scanner::NlTriggerAckCallback(nl_msg* /*message*/,
+										 void* scannerInstance)
 {
 	static_cast<NL80211Scanner*>(scannerInstance)->_triggerAcked = true;
 	return NL_STOP;
 }
 
-int NL80211Scanner::NlTriggerErrorCallback(sockaddr_nl* /*sourceAddress*/, nlmsgerr* error, void* scannerInstance)
+int NL80211Scanner::NlTriggerErrorCallback(sockaddr_nl* /*sourceAddress*/,
+										   nlmsgerr* error,
+										   void* scannerInstance)
 {
-	static_cast<NL80211Scanner*>(scannerInstance)->_triggerErrno = -error->error;
+	static_cast<NL80211Scanner*>(scannerInstance)->_triggerErrno =
+		-error->error;
 	return NL_STOP;
 }
 
 int NL80211Scanner::NlScanEventCallback(nl_msg* message, void* scannerInstance)
 {
-	return static_cast<NL80211Scanner*>(scannerInstance)->ProcessScanEvent(message);
+	return static_cast<NL80211Scanner*>(scannerInstance)
+		->ProcessScanEvent(message);
 }
 
 } // namespace wifi
