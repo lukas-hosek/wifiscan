@@ -6,11 +6,18 @@
 namespace ui
 {
 
-enum class SortMode
+enum class ColumnType
 {
-	Signal,
 	SSID,
-	Channel
+	BSSID,
+	Channel,
+	Band,
+	Width,
+	Standard,
+	Security,
+	Rate,
+	Signal,
+	Quality
 };
 
 class NetworkTablePanel : public IPanel
@@ -25,8 +32,9 @@ private:
 	// Index of the currently highlighted row in the network table
 	int _selectedRow{0};
 
-	// Active sort column; cycled by pressing 's'
-	SortMode _sortMode{SortMode::Signal};
+	// Active sort column; cycled by pressing 's'. Always equals one of the
+	// types listed in kSortableColumns (in NetworkTablePanel.cpp).
+	ColumnType _sortColumn{ColumnType::Signal};
 };
 
 } // namespace ui
