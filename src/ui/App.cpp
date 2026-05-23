@@ -92,14 +92,10 @@ ftxui::Element App::Render()
 		statusMsg = _statusMsg;
 	}
 
-	auto sep = [&]
-	{
-		return ftxui::separator() |
-			   ftxui::color(theme::Color(theme::UiColor::Border));
-	};
+	auto sep = [&] { return ftxui::separator() | ftxui::color(theme::Color(theme::UiColor::Border)); };
 
-	// Fixed rows: 2 separators + status bar = 3 lines
-	int available = std::max(0, ftxui::Terminal::Size().dimy - 3);
+	// Fixed rows: 1 separator + status bar = 2 lines
+	int available = std::max(0, ftxui::Terminal::Size().dimy - 2);
 	int spectrumHeight = std::max(12, available * 2 / 5);
 	int tableHeight = std::max(0, available - spectrumHeight);
 
@@ -108,7 +104,6 @@ ftxui::Element App::Render()
 	return ftxui::vbox({
 			   _spectrumPanel->Render(networks, spectrumHeight) |
 				   ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, spectrumHeight),
-			   sep(),
 			   _networkTablePanel->Render(networks, tableHeight) |
 				   ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, tableHeight),
 			   sep(),

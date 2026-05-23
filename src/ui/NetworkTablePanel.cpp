@@ -23,21 +23,20 @@ namespace
 ftxui::Element RenderSsid(const wifi::Network& net)
 {
 	using namespace ftxui;
-	std::string prefix = net._connected ? "[*] " : " -  ";
-	auto prefixColor = net._connected
-						   ? theme::Color(theme::UiColor::ConnectedNetwork)
-						   : theme::Color(theme::UiColor::Muted);
 	std::string ssid =
 		net._ssid.empty() ? "???" : SanitizeForTerminal(net._ssid);
 	if (ssid.empty())
 		ssid = "???";
-	auto rowColor = net._connected
-						? theme::Color(theme::UiColor::ConnectedNetwork)
-						: theme::Color(theme::UiColor::NetworkRow);
-	return hbox({
-		text(prefix) | color(prefixColor),
-		text(PadRight(ssid, 24)) | color(rowColor),
-	});
+	if (net._connected)
+	{
+		return hbox({
+			text("* ") | color(theme::Color(theme::UiColor::ConnectedNetwork)),
+			text(PadRight(ssid, 26)) |
+				color(theme::Color(theme::UiColor::ConnectedNetwork)),
+		});
+	}
+	return text("  " + PadRight(ssid, 26)) |
+		   color(theme::Color(theme::UiColor::NetworkRow));
 }
 
 ftxui::Element RenderBssid(const wifi::Network& net)
@@ -124,11 +123,10 @@ struct ColumnDescriptor
 	ftxui::Element (*renderCell)(const wifi::Network&);
 };
 
-// Display order. The SSID descriptor's width (28) includes the 4-char
-// connection prefix; its renderCell emits prefix + SSID together. The header
-// label has 4 leading spaces to align with the data cells.
+// Display order. The SSID descriptor's width (28) covers "* " + 26-char SSID
+// for connected networks, or the full 28-char SSID for others.
 static const ColumnDescriptor kColumns[] = {
-	{ColumnType::SSID, "    SSID", 28, true, RenderSsid},
+	{ColumnType::SSID, "  SSID", 28, true, RenderSsid},
 	{ColumnType::BSSID, "BSSID", 17, true, RenderBssid},
 	{ColumnType::Channel, "CH", 4, true, RenderChannel},
 	{ColumnType::Band, "BAND", 4, true, RenderBand},
@@ -162,13 +160,17 @@ struct SortableColumn
 static const SortableColumn kSortableColumns[] = {
 	{ColumnType::Signal,
 	 [](const wifi::Network& a, const wifi::Network& b)
-	 { return a._signalDbm > b._signalDbm; }},
+	 { return a._signalDbm != b._signalDbm ? a._signalDbm > b._signalDbm : a._ssid < b._ssid; }},
 	{ColumnType::SSID,
 	 [](const wifi::Network& a, const wifi::Network& b)
 	 { return a._ssid < b._ssid; }},
 	{ColumnType::Channel,
 	 [](const wifi::Network& a, const wifi::Network& b)
-	 { return a._band != b._band ? a._band < b._band : a._channel < b._channel; }},
+	 {
+		 if (a._band != b._band) return a._band < b._band;
+		 if (a._channel != b._channel) return a._channel < b._channel;
+		 return a._ssid < b._ssid;
+	 }},
 };
 
 using VisibilityMap = std::array<bool, std::size(kColumns)>;
