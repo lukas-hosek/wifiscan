@@ -4,8 +4,10 @@
 #include "TextUtil.hpp"
 #include "Theme.hpp"
 #include <algorithm>
+#include <functional>
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/terminal.hpp>
 #include <ranges>
 
 namespace ui
@@ -33,56 +35,6 @@ void SortByMode(std::vector<wifi::Network>& nets, SortMode mode)
 	}
 }
 
-ftxui::Element BuildHeaderRow(SortMode active)
-{
-	using namespace ftxui;
-
-	auto sep = []
-	{ return text(" | ") | color(theme::Color(theme::UiColor::Muted)); };
-
-	// Returns label with "*" appended when this column is the active sort key
-	auto hdrText = [&](const std::string& label, int width, SortMode mode)
-	{ return PadRight(active == mode ? label + "*" : label, width); };
-	auto hdrColor = [&](SortMode mode) -> Color
-	{
-		return active == mode ? theme::Color(theme::UiColor::DataValue)
-							  : theme::Color(theme::UiColor::ColumnHeader);
-	};
-
-	return hbox({
-		text("    ") | color(theme::Color(theme::UiColor::Muted)),
-		text(hdrText("SSID", 24, SortMode::SSID)) |
-			color(hdrColor(SortMode::SSID)) | bold,
-		sep(),
-		text(PadRight("BSSID", 17)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(hdrText("CH", 4, SortMode::Channel)) |
-			color(hdrColor(SortMode::Channel)) | bold,
-		sep(),
-		text(PadRight("BAND", 4)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(PadRight("W", 3)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(PadRight("STD", 3)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(PadRight("SEC", 7)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(PadRight("RATE", 7)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-		sep(),
-		text(hdrText("SIGNAL", 8, SortMode::Signal)) |
-			color(hdrColor(SortMode::Signal)) | bold,
-		sep(),
-		text(PadRight("QUAL", 10)) |
-			color(theme::Color(theme::UiColor::ColumnHeader)) | bold,
-	});
-}
-
 ftxui::Element BuildQualityBar(int signalDbm, int quality)
 {
 	using namespace ftxui;
@@ -99,7 +51,160 @@ ftxui::Element BuildQualityBar(int signalDbm, int quality)
 	});
 }
 
-ftxui::Element BuildDataRow(const wifi::Network& net, bool selected)
+// Display width of the always-visible columns (prefix + SSID + CH + BAND + W +
+// STD + SIGNAL, including their inter-column separators): 65.
+static constexpr int kPermanentWidth = 65;
+
+struct CollapsibleCol
+{
+	const char* header;
+	int width;
+	// Drop priority: lower collapseRank = first to vanish as the terminal
+	// narrows. Values must be unique across entries.
+	int collapseRank;
+	// True when this column appears right after SSID in the row layout.
+	bool afterSsid;
+	// True when this column appears after SIGNAL in the row layout.
+	bool afterSignal;
+	// True when the element must be rendered outside the row-inversion group
+	// (needed for columns with hand-painted backgrounds, e.g. QUAL).
+	// Its separator is still emitted inside the inversion group.
+	bool outsideHighlight;
+	std::function<ftxui::Element(const wifi::Network&)> data;
+};
+
+// Edit this array to change which columns collapse and in what order.
+// Entries are in DISPLAY ORDER. collapseRank controls drop priority.
+// Each entry contributes (width + 3) display columns (content + separator).
+// afterSsid=true: rendered right after SSID; afterSignal=true: after SIGNAL.
+static const CollapsibleCol kCollapsibleCols[] = {
+	{
+		"BSSID", 17, 3, true, false, false,
+		[](const wifi::Network& n)
+		{
+			return ftxui::text(PadRight(n._bssid, 17)) |
+				   ftxui::color(theme::Color(theme::UiColor::Muted));
+		},
+	},
+	{
+		"SEC", 7, 4, false, false, false,
+		[](const wifi::Network& n)
+		{
+			return ftxui::text(PadRight(wifi::SecurityLabel(n._security), 7)) |
+				   ftxui::color(theme::Color(theme::UiColor::DataValue));
+		},
+	},
+	{
+		"RATE", 7, 1, false, false, false,
+		[](const wifi::Network& n)
+		{
+			std::string s =
+				n._maxRateMbps > 0 ? std::to_string(n._maxRateMbps) + "M" : "-";
+			return ftxui::text(PadRight(s, 7)) |
+				   ftxui::color(theme::Color(theme::UiColor::DataValue));
+		},
+	},
+	{
+		"QUAL", 10, 2, false, true, true,
+		[](const wifi::Network& n)
+		{
+			return BuildQualityBar(n._signalDbm, n.SignalQuality());
+		},
+	},
+};
+
+// Returns the highest collapseRank that is currently being suppressed.
+// Columns with collapseRank <= threshold are hidden; those above it are shown.
+int CollapseThreshold(int termWidth)
+{
+	std::vector<std::pair<int, int>> drops; // (collapseRank, width contribution)
+	drops.reserve(std::size(kCollapsibleCols));
+	for (const auto& col : kCollapsibleCols)
+		drops.push_back({col.collapseRank, col.width + 3});
+	std::ranges::sort(drops);
+
+	int width = kPermanentWidth;
+	for (auto [rank, w] : drops)
+		width += w;
+
+	int threshold = 0;
+	for (auto [rank, w] : drops)
+	{
+		if (width <= termWidth)
+			break;
+		threshold = rank;
+		width -= w;
+	}
+	return threshold;
+}
+
+ftxui::Element BuildHeaderRow(SortMode active, int threshold)
+{
+	using namespace ftxui;
+
+	auto sep = []
+	{ return text(" | ") | color(theme::Color(theme::UiColor::Muted)); };
+
+	// Returns label with "*" appended when this column is the active sort key
+	auto hdrText = [&](const std::string& label, int width, SortMode mode)
+	{ return PadRight(active == mode ? label + "*" : label, width); };
+	auto hdrColor = [&](SortMode mode) -> Color
+	{
+		return active == mode ? theme::Color(theme::UiColor::DataValue)
+							  : theme::Color(theme::UiColor::ColumnHeader);
+	};
+
+	std::vector<Element> items;
+	items.push_back(text("    ") | color(theme::Color(theme::UiColor::Muted)));
+	items.push_back(text(hdrText("SSID", 24, SortMode::SSID)) |
+					color(hdrColor(SortMode::SSID)) | bold);
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (!col.afterSsid || col.collapseRank <= threshold)
+			continue;
+		items.push_back(sep());
+		items.push_back(text(PadRight(col.header, col.width)) |
+						color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+	}
+	items.push_back(sep());
+	items.push_back(text(hdrText("CH", 4, SortMode::Channel)) |
+					color(hdrColor(SortMode::Channel)) | bold);
+	items.push_back(sep());
+	items.push_back(text(PadRight("BAND", 4)) |
+					color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+	items.push_back(sep());
+	items.push_back(text(PadRight("W", 3)) |
+					color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+	items.push_back(sep());
+	items.push_back(text(PadRight("STD", 3)) |
+					color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (col.afterSsid || col.afterSignal || col.collapseRank <= threshold)
+			continue;
+		items.push_back(sep());
+		items.push_back(text(PadRight(col.header, col.width)) |
+						color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+	}
+
+	items.push_back(sep());
+	items.push_back(text(hdrText("SIGNAL", 8, SortMode::Signal)) |
+					color(hdrColor(SortMode::Signal)) | bold);
+
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (!col.afterSignal || col.collapseRank <= threshold)
+			continue;
+		items.push_back(sep());
+		items.push_back(text(PadRight(col.header, col.width)) |
+						color(theme::Color(theme::UiColor::ColumnHeader)) | bold);
+	}
+
+	return hbox(items);
+}
+
+ftxui::Element BuildDataRow(const wifi::Network& net, bool selected, int threshold)
 {
 	using namespace ftxui;
 
@@ -121,49 +226,68 @@ ftxui::Element BuildDataRow(const wifi::Network& net, bool selected)
 
 	std::string widthStr =
 		net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-";
-	std::string rateStr =
-		net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-";
 
-	// Everything up to (and including) the separator before QUAL participates
-	// in row inversion. QUAL is appended outside so its hand-painted background
-	// stays correct on the selected row.
-	auto mainPart = hbox({
-		text(prefix) | color(prefixColor),
-		text(PadRight(ssid, 24)) | color(rowColor),
-		sep(),
-		text(PadRight(net._bssid, 17)) |
-			color(theme::Color(theme::UiColor::Muted)),
-		sep(),
-		text(PadRight(std::to_string(net._channel), 4)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
-		text(PadRight(wifi::BandLabel(net._band), 4)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
-		text(PadRight(widthStr, 3)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
-		text(PadRight(wifi::StandardLabel(net._standard), 3)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
-		text(PadRight(wifi::SecurityLabel(net._security), 7)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
-		text(PadRight(rateStr, 7)) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		sep(),
+	// Fixed columns and before-signal collapsibles go into mainPart, which
+	// receives the row-inversion decorator when selected. outsideHighlight
+	// columns (QUAL) are appended after inversion so their painted background
+	// is not corrupted; their separator is still inside mainPart so it inverts.
+	std::vector<Element> mainItems;
+	mainItems.push_back(text(prefix) | color(prefixColor));
+	mainItems.push_back(text(PadRight(ssid, 24)) | color(rowColor));
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (!col.afterSsid || col.collapseRank <= threshold)
+			continue;
+		mainItems.push_back(sep());
+		mainItems.push_back(col.data(net));
+	}
+	mainItems.push_back(sep());
+	mainItems.push_back(text(PadRight(std::to_string(net._channel), 4)) |
+						color(theme::Color(theme::UiColor::DataValue)));
+	mainItems.push_back(sep());
+	mainItems.push_back(text(PadRight(wifi::BandLabel(net._band), 4)) |
+						color(theme::Color(theme::UiColor::DataValue)));
+	mainItems.push_back(sep());
+	mainItems.push_back(text(PadRight(widthStr, 3)) |
+						color(theme::Color(theme::UiColor::DataValue)));
+	mainItems.push_back(sep());
+	mainItems.push_back(text(PadRight(wifi::StandardLabel(net._standard), 3)) |
+						color(theme::Color(theme::UiColor::DataValue)));
+
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (col.afterSsid || col.afterSignal || col.collapseRank <= threshold)
+			continue;
+		mainItems.push_back(sep());
+		mainItems.push_back(col.data(net));
+	}
+
+	mainItems.push_back(sep());
+	mainItems.push_back(
 		text(PadRight(std::to_string(net._signalDbm) + " dBm", 8)) |
-			color(theme::SignalColor(net._signalDbm)),
-		sep(),
-	});
+		color(theme::SignalColor(net._signalDbm)));
 
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (!col.afterSignal || col.collapseRank <= threshold)
+			continue;
+		mainItems.push_back(sep());
+		if (!col.outsideHighlight)
+			mainItems.push_back(col.data(net));
+	}
+
+	auto mainPart = hbox(mainItems);
 	if (selected)
 		mainPart = mainPart | inverted;
 
-	return hbox({
-		mainPart,
-		BuildQualityBar(net._signalDbm, net.SignalQuality()),
-	});
+	std::vector<Element> outer = {mainPart};
+	for (const auto& col : kCollapsibleCols)
+	{
+		if (!col.afterSignal || !col.outsideHighlight || col.collapseRank <= threshold)
+			continue;
+		outer.push_back(col.data(net));
+	}
+	return hbox(outer);
 }
 
 } // namespace
@@ -202,7 +326,8 @@ bool NetworkTablePanel::HandleEvent(ftxui::Event event)
 }
 
 ftxui::Element
-NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
+NetworkTablePanel::Render(const std::vector<wifi::Network>& networks,
+						  int /*allocatedHeight*/)
 {
 	using namespace ftxui;
 
@@ -215,8 +340,10 @@ NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 	if (_selectedRow < 0)
 		_selectedRow = 0;
 
+	int threshold = CollapseThreshold(ftxui::Terminal::Size().dimx);
+
 	std::vector<Element> rows;
-	rows.push_back(BuildHeaderRow(_sortMode));
+	rows.push_back(BuildHeaderRow(_sortMode, threshold));
 	rows.push_back(separator() | color(theme::Color(theme::UiColor::Border)));
 
 	if (sorted.empty())
@@ -228,8 +355,8 @@ NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 	for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
 	{
 		bool selected = rowIndex == _selectedRow;
-		auto row =
-			BuildDataRow(sorted[static_cast<size_t>(rowIndex)], selected);
+		auto row = BuildDataRow(sorted[static_cast<size_t>(rowIndex)], selected,
+								threshold);
 		if (selected)
 			row = row | focus;
 		rows.push_back(row);

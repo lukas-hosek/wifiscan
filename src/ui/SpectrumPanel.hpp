@@ -10,7 +10,7 @@ class SpectrumPanel : public IPanel
 {
 public:
 	[[nodiscard]] ftxui::Element
-	Render(const std::vector<wifi::Network>& networks) override;
+	Render(const std::vector<wifi::Network>& networks, int allocatedHeight) override;
 	[[nodiscard]] std::string GetTitle() const override { return "Spectrum"; }
 	[[nodiscard]] bool HandleEvent(ftxui::Event event) override;
 

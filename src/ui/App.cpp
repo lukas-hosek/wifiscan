@@ -44,7 +44,6 @@ void App::ScanLoop(std::stop_token stopToken)
 		{
 			std::lock_guard lock(_mutex);
 			_networks = std::move(freshNetworks);
-			_lastScan = scanEnd;
 
 			const std::string& lastError = _scanner.GetLastError();
 			wifi::ScanFetchState fetchState = _scanner.GetLastFetchState();
@@ -108,15 +107,15 @@ ftxui::Element App::Render()
 	};
 
 	// Fixed rows: 2 separators + status bar = 3 lines
-	int available = std::max(6, ftxui::Terminal::Size().dimy - 3);
-	int spectrumHeight = available * 2 / 5;
-	int tableHeight = available - spectrumHeight;
+	int available = std::max(0, ftxui::Terminal::Size().dimy - 3);
+	int spectrumHeight = std::max(12, available * 2 / 5);
+	int tableHeight = std::max(0, available - spectrumHeight);
 
 	return ftxui::vbox({
-			   _panels[0]->Render(networks) |
+			   _panels[0]->Render(networks, spectrumHeight) |
 				   ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, spectrumHeight),
 			   sep(),
-			   _panels[1]->Render(networks) |
+			   _panels[1]->Render(networks, tableHeight) |
 				   ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, tableHeight),
 			   sep(),
 			   RenderStatusBar(),
@@ -129,33 +128,43 @@ ftxui::Element App::RenderStatusBar()
 	using namespace ftxui;
 
 	std::string statusMsg;
-	int secondsUntilNext = 5;
 	{
 		std::lock_guard lock(_mutex);
 		statusMsg = _statusMsg;
-		if (_lastScan.time_since_epoch().count() > 0)
-		{
-			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-							   std::chrono::steady_clock::now() - _lastScan)
-							   .count();
-			secondsUntilNext = std::max(0LL, 5LL - elapsed);
-		}
 	}
 
-	return hbox({
-		text(" " + statusMsg + " ") |
-			color(theme::Color(theme::UiColor::StatusText)),
-		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text("next scan: " + std::to_string(secondsUntilNext) + "s") |
-			color(theme::Color(theme::UiColor::Muted)),
-		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
-		text("iface: " + _scanner.GetInterface()) |
-			color(theme::Color(theme::UiColor::DataValue)),
-		filler(),
-		text(" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort  [e] "
-			 "hide-connected ") |
-			color(theme::Color(theme::UiColor::ShortcutHint)),
-	});
+	static constexpr std::string_view kHintsFull =
+		" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort  [e] "
+		"hide-connected ";
+	static constexpr std::string_view kHintsCompact = " [q] [↑↓] [←→] [Tab] [s] [e] ";
+	// Arrow glyphs are 3 UTF-8 bytes but 1 display column each; there are 4 of
+	// them in each hint string.
+	static constexpr int kHintColsFull =
+		static_cast<int>(kHintsFull.size()) - 4 * 2;
+
+	std::string iface = "iface: " + _scanner.GetInterface();
+	int ifaceCols = static_cast<int>(iface.size());
+	// "statusMsg " = statusMsg.size() + 1 display col
+	int statusCols = static_cast<int>(statusMsg.size()) + 1;
+	int termWidth = Terminal::Size().dimx;
+	bool showFull = termWidth >= ifaceCols + kHintColsFull;
+	bool showStatus = showFull && termWidth >= ifaceCols + kHintColsFull + statusCols;
+
+	std::string_view hints = showFull ? kHintsFull : kHintsCompact;
+
+	std::vector<Element> items;
+	if (showStatus)
+	{
+		items.push_back(text(statusMsg + " ") |
+						color(theme::Color(theme::UiColor::StatusText)));
+	}
+	items.push_back(text(iface) |
+					color(theme::Color(theme::UiColor::DataValue)));
+	items.push_back(filler());
+	items.push_back(text(std::string(hints)) |
+					color(theme::Color(theme::UiColor::ShortcutHint)));
+
+	return hbox(items);
 }
 
 } // namespace ui

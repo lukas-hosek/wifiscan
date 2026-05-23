@@ -293,14 +293,12 @@ ftxui::Element RenderBand(const std::vector<wifi::Network>& networks,
 
 } // namespace
 
-ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
+ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
+									 int allocatedHeight)
 {
-	// Fixed rows in the overall layout: 2 separators + status = 3
-	// Spectrum gets 2/5 of the remaining height; subtract window border (2) and
-	// overhead
-	int available = ftxui::Terminal::Size().dimy - 3;
-	int spectrumRows = std::max(kColumnOverhead + 1, available * 2 / 5);
-	int maxBarHeight = std::max(1, spectrumRows - kColumnOverhead - 2);
+	// Subtract window border (2 rows) to get the drawable interior height,
+	// then split into label rows (kColumnOverhead) and bar rows.
+	int maxBarHeight = std::max(1, allocatedHeight - kColumnOverhead - 2);
 
 	std::vector<wifi::Network> filtered;
 	const std::vector<wifi::Network>* visible = &networks;

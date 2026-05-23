@@ -3,7 +3,6 @@
 #pragma once
 #include "IPanel.hpp"
 #include "wifi/IScanner.hpp"
-#include <chrono>
 #include <ftxui/component/screen_interactive.hpp>
 #include <memory>
 #include <mutex>
@@ -27,8 +26,7 @@ private:
 	// Assembles the full element tree from all panels plus the status bar
 	ftxui::Element Render();
 
-	// Renders the bottom status bar (interface, last scan time, next scan
-	// countdown, quit hint)
+	// Renders the bottom status bar (status message, interface, key hints)
 	ftxui::Element RenderStatusBar();
 
 	// Background thread body: calls GetNetworks() every 2 seconds and wakes the
@@ -53,10 +51,6 @@ private:
 	// Human-readable status line updated after each scan (e.g. "Last scan:
 	// 14:32:01")
 	std::string _statusMsg{"Scanning..."};
-
-	// Timestamp of the most recent completed scan, used to compute next-scan
-	// countdown
-	std::chrono::steady_clock::time_point _lastScan{};
 
 	// Ordered list of panels rendered top-to-bottom; add new IPanel impls here
 	// for new views

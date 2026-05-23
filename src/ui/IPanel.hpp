@@ -15,9 +15,10 @@ class IPanel
 public:
 	virtual ~IPanel() = default;
 
-	// Builds and returns the FTXUI element tree for this panel
+	// Builds and returns the FTXUI element tree for this panel.
+	// allocatedHeight is the number of terminal rows App has reserved for it.
 	[[nodiscard]] virtual ftxui::Element
-	Render(const std::vector<wifi::Network>& networks) = 0;
+	Render(const std::vector<wifi::Network>& networks, int allocatedHeight) = 0;
 
 	// Short display name used for debugging and status messages
 	[[nodiscard]] virtual std::string GetTitle() const = 0;
