@@ -539,8 +539,9 @@ void NL80211Scanner::CleanupNl() noexcept
 	}
 }
 
-bool NL80211Scanner::TriggerScan()
+bool NL80211Scanner::TriggerScan(std::stop_token stopToken)
 {
+	_lastError.clear();
 	bool triggerAccepted = false;
 
 	// Subscribe to the nl80211 "scan" multicast group on a dedicated socket so
@@ -690,7 +691,7 @@ bool NL80211Scanner::TriggerScan()
 		auto deadline =
 			std::chrono::steady_clock::now() + std::chrono::seconds(15);
 
-		while (!_scanDone && !_scanAborted)
+		while (!_scanDone && !_scanAborted && !stopToken.stop_requested())
 		{
 			auto remaining =
 				std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -752,22 +753,11 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 {
 	_pendingScanResults.clear();
 	_lastError.clear();
-	_lastFetchState = ScanFetchState::Unknown;
-
-	if (_coldStart)
-	{
-		_coldStart = false;
-		_lastFetchState = ScanFetchState::Cached;
-	}
-	else
-		_lastFetchState =
-			TriggerScan() ? ScanFetchState::Fresh : ScanFetchState::Cached;
 
 	nl_msg* message = nlmsg_alloc();
 	if (!message)
 	{
 		_lastError = "Failed to allocate netlink message";
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
@@ -776,7 +766,6 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 	{
 		nlmsg_free(message);
 		_lastError = "Failed to initialize GET_SCAN message";
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
@@ -787,7 +776,6 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 		nlmsg_free(message);
 		_lastError = LibnlFailure("Failed to encode GET_SCAN interface index",
 								  ifindexResult);
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
@@ -796,7 +784,6 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 	{
 		nlmsg_free(message);
 		_lastError = "Failed to allocate netlink callback";
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
@@ -812,7 +799,6 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 		nl_cb_put(callback);
 		_lastError =
 			LibnlFailure("Failed to send GET_SCAN request", sendResult);
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 
@@ -824,7 +810,6 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 		if (_lastError.empty())
 			_lastError =
 				LibnlFailure("Failed to receive GET_SCAN results", recvResult);
-		_lastFetchState = ScanFetchState::Unknown;
 		return {};
 	}
 

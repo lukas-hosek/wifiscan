@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #pragma once
-#include "IPanel.hpp"
+#include "NetworkTablePanel.hpp"
+#include "SpectrumPanel.hpp"
+#include "StatusBarPanel.hpp"
 #include "wifi/IScanner.hpp"
 #include <ftxui/component/screen_interactive.hpp>
 #include <memory>
@@ -26,12 +28,10 @@ private:
 	// Assembles the full element tree from all panels plus the status bar
 	ftxui::Element Render();
 
-	// Renders the bottom status bar (status message, interface, key hints)
-	ftxui::Element RenderStatusBar();
-
-	// Background thread body: calls GetNetworks() every 2 seconds and wakes the
-	// UI. Exits when the stop token is signalled (by jthread's destructor on
-	// App teardown).
+	// Background thread body: reads the kernel's cached BSS table, posts it to
+	// the UI, then triggers a fresh scan (blocking until the kernel signals
+	// completion), and repeats. Exits when the stop token is signalled (by
+	// jthread's destructor on App teardown).
 	void ScanLoop(std::stop_token stopToken);
 
 	// The data source; may be a live nl80211 scanner or any other IScanner
@@ -52,9 +52,9 @@ private:
 	// 14:32:01")
 	std::string _statusMsg{"Scanning..."};
 
-	// Ordered list of panels rendered top-to-bottom; add new IPanel impls here
-	// for new views
-	std::vector<std::unique_ptr<IPanel>> _panels;
+	std::unique_ptr<SpectrumPanel> _spectrumPanel;
+	std::unique_ptr<NetworkTablePanel> _networkTablePanel;
+	std::unique_ptr<StatusBarPanel> _statusBarPanel;
 
 	// Runs ScanLoop() concurrently with the FTXUI render loop.
 	// Declared last so it is destroyed first: its destructor calls

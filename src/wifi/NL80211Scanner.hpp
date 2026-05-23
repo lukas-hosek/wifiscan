@@ -33,6 +33,7 @@ public:
 	NL80211Scanner& operator=(const NL80211Scanner&) = delete;
 
 	[[nodiscard]] std::vector<Network> GetNetworks() override;
+	bool TriggerScan(std::stop_token stopToken) override;
 	[[nodiscard]] const std::string& GetInterface() const noexcept override
 	{
 		return _iface;
@@ -41,20 +42,10 @@ public:
 	{
 		return _lastError;
 	}
-	[[nodiscard]] ScanFetchState GetLastFetchState() const noexcept override
-	{
-		return _lastFetchState;
-	}
 
 private:
 	void InitNl();
 	void CleanupNl() noexcept;
-
-	// Sends NL80211_CMD_TRIGGER_SCAN and blocks until the kernel reports scan
-	// completion (or timeout / error). Returns true when a fresh scan is ready
-	// to be read; returns false on hard errors (caller falls back to cached
-	// data).
-	bool TriggerScan();
 
 	// Parses one BSS netlink message and appends the decoded Network to
 	// _pendingScanResults. Called by the static trampoline
@@ -100,13 +91,6 @@ private:
 
 	// Human-readable description of the most recent error, empty if none
 	std::string _lastError;
-
-	// Whether the latest results came from a fresh scan or cached kernel state.
-	ScanFetchState _lastFetchState{ScanFetchState::Unknown};
-
-	// Skip TriggerScan on the very first GetNetworks() call so the kernel's
-	// cached BSS table is returned immediately without waiting for a full scan.
-	bool _coldStart{true};
 
 	// Transient flags used only during a single TriggerScan() call
 	bool _scanDone{false};

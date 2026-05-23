@@ -30,6 +30,7 @@ add_executable(wifiscan
 	src/ui/TextUtil.cpp
 	src/ui/SpectrumPanel.cpp
 	src/ui/NetworkTablePanel.cpp
+	src/ui/StatusBarPanel.cpp
 	src/ui/App.cpp
 )
 
