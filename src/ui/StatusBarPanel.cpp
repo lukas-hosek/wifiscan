@@ -32,27 +32,17 @@ ftxui::Element StatusBarPanel::Render(
 
 	std::string iface = "iface: " + _scanner.GetInterface();
 	int ifaceCols = static_cast<int>(iface.size());
-	// "statusMsg " = statusMsg.size() + 1 display col
-	int statusCols = static_cast<int>(_statusMsg.size()) + 1;
 	int termWidth = Terminal::Size().dimx;
 	bool showFull = termWidth >= ifaceCols + kHintColsFull;
-	bool showStatus = showFull && termWidth >= ifaceCols + kHintColsFull + statusCols;
 
 	std::string_view hints = showFull ? kHintsFull : kHintsCompact;
 
-	std::vector<Element> items;
-	if (showStatus)
-	{
-		items.push_back(text(_statusMsg + " ") |
-						color(theme::Color(theme::UiColor::StatusText)));
-	}
-	items.push_back(text(iface) |
-					color(theme::Color(theme::UiColor::DataValue)));
-	items.push_back(filler());
-	items.push_back(text(std::string(hints)) |
-					color(theme::Color(theme::UiColor::ShortcutHint)));
-
-	return hbox(items);
+	return hbox({
+		text(_statusMsg + " ") | color(theme::Color(theme::UiColor::StatusText)),
+		text(iface) | color(theme::Color(theme::UiColor::DataValue)),
+		filler(),
+		text(std::string(hints)) | color(theme::Color(theme::UiColor::ShortcutHint)),
+	});
 }
 
 } // namespace ui
