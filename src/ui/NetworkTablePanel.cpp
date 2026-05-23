@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "NetworkTablePanel.hpp"
-#include "TextUtil.hpp"
+#include "utils/TextUtil.hpp"
 #include "Theme.hpp"
 #include <algorithm>
 #include <array>
@@ -14,6 +14,8 @@
 namespace ui
 {
 
+using namespace utils;
+
 namespace
 {
 
@@ -23,8 +25,7 @@ namespace
 ftxui::Element RenderSsid(const wifi::Network& net)
 {
 	using namespace ftxui;
-	std::string ssid =
-		net._ssid.empty() ? "???" : SanitizeForTerminal(net._ssid);
+	std::string ssid = net._ssid.empty() ? "???" : net._ssid;
 	if (ssid.empty())
 		ssid = "???";
 	if (net._connected)

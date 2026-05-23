@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "SpectrumPanel.hpp"
-#include "TextUtil.hpp"
+#include "utils/TextUtil.hpp"
 #include "Theme.hpp"
 #include <algorithm>
 #include <array>
@@ -13,6 +13,8 @@
 
 namespace ui
 {
+
+using namespace utils;
 
 namespace
 {
@@ -151,8 +153,7 @@ BuildLabelsBlock(const std::vector<const wifi::Network*>& sortedNets)
 	{
 		if (shown >= kMaxLabels)
 			break;
-		std::string label =
-			net->_ssid.empty() ? "???" : SanitizeForTerminal(net->_ssid);
+		std::string label = net->_ssid.empty() ? "???" : net->_ssid;
 		if (label.empty())
 			label = "???";
 		if (label.size() > static_cast<size_t>(kColWidth))

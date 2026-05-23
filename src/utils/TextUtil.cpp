@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
-#include "TextUtil.hpp"
+#include "utils/TextUtil.hpp"
 #include <cstdint>
 #include <string_view>
 
-namespace ui
+namespace utils
 {
 
 namespace
@@ -153,4 +153,4 @@ std::string CenterText(const std::string& str, int width)
 		   std::string(static_cast<size_t>(rightPad), ' ');
 }
 
-} // namespace ui
+} // namespace utils

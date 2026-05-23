@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace ui
+namespace utils
 {
 
 // Pads str on the right with spaces until it occupies the given number of
@@ -19,4 +19,4 @@ std::string SanitizeForTerminal(std::string_view str);
 // sides with spaces. If str is already wider, it is truncated to fit.
 std::string CenterText(const std::string& str, int width);
 
-} // namespace ui
+} // namespace utils

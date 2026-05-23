@@ -2,6 +2,7 @@
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "NL80211Scanner.hpp"
 #include "IE.hpp"
+#include "utils/TextUtil.hpp"
 #include <array>
 #include <cerrno>
 #include <chrono>
@@ -117,8 +118,8 @@ ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 			if (elementLength == 0)
 				ssidOut = "<hidden>";
 			else
-				ssidOut.assign(reinterpret_cast<const char*>(payload),
-							   elementLength);
+			ssidOut = utils::SanitizeForTerminal(std::string_view(
+			reinterpret_cast<const char*>(payload), elementLength));
 			break;
 
 		case ie::BSS_LOAD:
