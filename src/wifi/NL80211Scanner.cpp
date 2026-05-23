@@ -76,6 +76,17 @@ std::string LibnlFailure(const char* operation, int result)
 	return fmt::format("{} ({})", operation, result);
 }
 
+// libnl applies its default sequence-number check against the socket's last
+// outgoing sequence. Multicast events from the kernel carry unrelated
+// sequence numbers, so the default check fails with NLE_SEQ_MISMATCH on the
+// first event. nl_socket_disable_seq_check() only affects the socket's
+// default callback; once we pass a custom nl_cb to nl_recvmsgs that override
+// is bypassed, so the check must be disabled on the callback itself.
+int NlSeqCheckPass(nl_msg* /*msg*/, void* /*arg*/)
+{
+	return NL_OK;
+}
+
 bool TryGetU32(nlattr* attr, uint32_t& out)
 {
 	if (!AttrHasLen(attr, static_cast<int>(sizeof(uint32_t))))
@@ -687,6 +698,7 @@ bool NL80211Scanner::TriggerScan(std::stop_token stopToken)
 	if (mcCb)
 	{
 		nl_cb_set(mcCb, NL_CB_VALID, NL_CB_CUSTOM, NlScanEventCallback, this);
+		nl_cb_set(mcCb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, NlSeqCheckPass, nullptr);
 
 		int fd = nl_socket_get_fd(mcSock);
 		auto deadline =
