@@ -19,6 +19,7 @@ enum class UiColor
 	SignalMedium,
 	SignalWeak,
 	Muted,
+	ShortcutHint,
 };
 
 ftxui::Color Color(UiColor element);

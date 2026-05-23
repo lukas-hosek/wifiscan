@@ -85,7 +85,7 @@ ftxui::Element BuildQualityBar(int signalDbm, int quality)
 	});
 }
 
-ftxui::Element BuildDataRow(const wifi::Network& net)
+ftxui::Element BuildDataRow(const wifi::Network& net, bool selected)
 {
 	using namespace ftxui;
 
@@ -100,7 +100,9 @@ ftxui::Element BuildDataRow(const wifi::Network& net)
 	std::string widthStr = net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-";
 	std::string rateStr  = net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-";
 
-	return hbox({
+	// Everything up to (and including) the separator before QUAL participates in row inversion.
+	// QUAL is appended outside so its hand-painted background stays correct on the selected row.
+	auto mainPart = hbox({
 		text(prefix) | color(prefixColor),
 		text(PadRight(ssid, 24)) | color(rowColor),
 		sep(),
@@ -120,6 +122,13 @@ ftxui::Element BuildDataRow(const wifi::Network& net)
 		sep(),
 		text(PadRight(std::to_string(net._signalDbm) + " dBm", 8)) | color(theme::SignalColor(net._signalDbm)),
 		sep(),
+	});
+
+	if (selected)
+		mainPart = mainPart | inverted;
+
+	return hbox({
+		mainPart,
 		BuildQualityBar(net._signalDbm, net.SignalQuality()),
 	});
 }
@@ -179,9 +188,10 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 
 	for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
 	{
-		auto row = BuildDataRow(sorted[static_cast<size_t>(rowIndex)]);
-		if (rowIndex == _selectedRow)
-			row = row | inverted | focus;
+		bool selected = rowIndex == _selectedRow;
+		auto row = BuildDataRow(sorted[static_cast<size_t>(rowIndex)], selected);
+		if (selected)
+			row = row | focus;
 		rows.push_back(row);
 	}
 

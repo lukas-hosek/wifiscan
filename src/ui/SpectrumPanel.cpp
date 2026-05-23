@@ -287,6 +287,17 @@ namespace ui
 		int spectrumRows = std::max(kColumnOverhead + 1, available * 2 / 5);
 		int maxBarHeight = std::max(1, spectrumRows - kColumnOverhead - 2);
 
+		std::vector<wifi::Network> filtered;
+		const std::vector<wifi::Network> *visible = &networks;
+		if (_hideConnected)
+		{
+			filtered.reserve(networks.size());
+			for (const auto &net : networks)
+				if (!net._connected)
+					filtered.push_back(net);
+			visible = &filtered;
+		}
+
 		std::span<const int> allChannels = BandChannels(_activeBandIndex);
 		int totalChannels = static_cast<int>(allChannels.size());
 
@@ -307,9 +318,11 @@ namespace ui
 			bandLabel = "< " + bandLabel;
 		if (canScrollRight)
 			bandLabel += " >";
+		if (_hideConnected)
+			bandLabel += " (connected hidden)";
 
 		return RenderBand(
-			networks,
+			*visible,
 			allChannels.subspan(static_cast<size_t>(_scrollOffset), static_cast<size_t>(visibleEnd - _scrollOffset)),
 			kBands[_activeBandIndex],
 			bandLabel,
@@ -339,6 +352,11 @@ namespace ui
 		if (event == ftxui::Event::ArrowRight)
 		{
 			_scrollOffset++; // clamped in Render()
+			return true;
+		}
+		if (event == ftxui::Event::Character('e') || event == ftxui::Event::Character('E'))
+		{
+			_hideConnected = !_hideConnected;
 			return true;
 		}
 		return false;

@@ -39,6 +39,11 @@ ftxui::Color Color(UiColor element)
 			return ftxui::Color::Red;
 		case UiColor::Muted:
 			return ftxui::Color::GrayDark;
+		case UiColor::ShortcutHint:
+		{
+			static const ftxui::Color c = ftxui::Color::RGB(180, 160, 90);
+			return c;
+		}
 	}
 	return ftxui::Color::Default;
 }

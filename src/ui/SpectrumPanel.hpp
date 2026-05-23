@@ -16,6 +16,9 @@ private:
 	int _activeBandIndex{0};
 	// First visible channel index within the current band's full channel list
 	int _scrollOffset{0};
+	// When true, omit the currently associated AP from the spectrum so its bar
+	// (typically the tallest) doesn't dwarf neighbouring networks. Toggled with 'e'.
+	bool _hideConnected{false};
 };
 
 } // namespace ui

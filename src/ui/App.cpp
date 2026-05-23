@@ -130,7 +130,7 @@ ftxui::Element App::RenderStatusBar()
 		text(" | ") | color(theme::Color(theme::UiColor::Muted)),
 		text("iface: " + _scanner.GetInterface()) | color(theme::Color(theme::UiColor::DataValue)),
 		filler(),
-		text(" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort ") | color(theme::Color(theme::UiColor::Muted)) | dim,
+		text(" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort  [e] hide-connected ") | color(theme::Color(theme::UiColor::ShortcutHint)),
 	});
 }
 
