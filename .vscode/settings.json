@@ -5,7 +5,6 @@
 	"[cpp]": {
 		"editor.defaultFormatter": "ms-vscode.cpptools"
 	},
-	"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 	"cmake.buildDirectory": "${workspaceFolder}/build",
 	"cmake.configureArgs": [
 		"-DCMAKE_BUILD_TYPE=Debug"
@@ -18,5 +17,8 @@
 		"*.hpp": "cpp",
 		"*.cpp": "cpp"
 	},
-	"terminal.integrated.defaultProfile.linux": "bash"
+	"terminal.integrated.defaultProfile.linux": "bash",
+	"C_Cpp.files.exclude": {
+		"**/third_party/**": true
+	}
 }

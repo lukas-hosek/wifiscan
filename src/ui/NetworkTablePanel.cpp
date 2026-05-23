@@ -110,7 +110,7 @@ ftxui::Element RenderQuality(const wifi::Network& net)
 struct ColumnDescriptor
 {
 	ColumnType type;
-	// Header label; padded with PadRight to width
+	// Header label
 	const char* header;
 	// Content width in display columns; the " | " separator between visible
 	// columns is NOT counted here

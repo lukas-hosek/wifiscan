@@ -1,5 +1,6 @@
 # Build output
 build/
+/compile_commands.json
 
 # IDE
 .claude/

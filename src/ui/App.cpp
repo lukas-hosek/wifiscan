@@ -15,12 +15,14 @@ namespace ui
 static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 {
 	auto wallTime = std::chrono::system_clock::now() +
-					(timePoint - std::chrono::steady_clock::now());
+		(timePoint - std::chrono::steady_clock::now());
 	auto timet = std::chrono::system_clock::to_time_t(wallTime);
 	struct tm localTime{};
 	localtime_r(&timet, &localTime);
-	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour,
-					   localTime.tm_min, localTime.tm_sec);
+	return fmt::format(
+		"{:02d}:{:02d}:{:02d}", localTime.tm_hour, localTime.tm_min,
+		localTime.tm_sec
+	);
 }
 
 App::App(wifi::IScanner& scanner) : _scanner(scanner)
@@ -61,22 +63,23 @@ void App::Run()
 {
 	auto component = ftxui::Renderer([this] { return Render(); });
 
-	component =
-		ftxui::CatchEvent(component,
-						  [&](ftxui::Event event)
-						  {
-							  if (event == ftxui::Event::Character('q') ||
-								  event == ftxui::Event::Character('Q'))
-							  {
-								  _screen.ExitLoopClosure()();
-								  return true;
-							  }
-							  if (_spectrumPanel->HandleEvent(event))
-								  return true;
-							  if (_networkTablePanel->HandleEvent(event))
-								  return true;
-							  return false;
-						  });
+	component = ftxui::CatchEvent(
+		component,
+		[&](ftxui::Event event)
+		{
+			if (event == ftxui::Event::Character('q') ||
+				event == ftxui::Event::Character('Q'))
+			{
+				_screen.ExitLoopClosure()();
+				return true;
+			}
+			if (_spectrumPanel->HandleEvent(event))
+				return true;
+			if (_networkTablePanel->HandleEvent(event))
+				return true;
+			return false;
+		}
+	);
 
 	_screen.Loop(component);
 	// _scanThread destructor fires here: request_stop() + join()
@@ -92,7 +95,11 @@ ftxui::Element App::Render()
 		statusMsg = _statusMsg;
 	}
 
-	auto sep = [&] { return ftxui::separator() | ftxui::color(theme::Color(theme::UiColor::Border)); };
+	auto sep = [&]
+	{
+		return ftxui::separator() |
+			ftxui::color(theme::Color(theme::UiColor::Border));
+	};
 
 	// Fixed rows: 1 separator + status bar = 2 lines
 	int available = std::max(0, ftxui::Terminal::Size().dimy - 2);
@@ -109,7 +116,7 @@ ftxui::Element App::Render()
 			   sep(),
 			   _statusBarPanel->Render(networks, 1),
 		   }) |
-		   ftxui::bgcolor(theme::Color(theme::UiColor::AppBackground));
+		ftxui::bgcolor(theme::Color(theme::UiColor::AppBackground));
 }
 
 } // namespace ui

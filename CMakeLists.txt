@@ -6,6 +6,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Symlink compile_commands.json into the project root so IntelliSense picks it up
+# without requiring a manual copy after every configure.
+file(CREATE_LINK
+	"${CMAKE_BINARY_DIR}/compile_commands.json"
+	"${CMAKE_SOURCE_DIR}/compile_commands.json"
+	SYMBOLIC
+)
+
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Debug)
 endif()
