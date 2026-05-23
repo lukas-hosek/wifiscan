@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <format>
+#include <fmt/format.h>
 #include <linux/nl80211.h>
 #include <net/if.h>
 #include <netlink/attr.h>
@@ -72,7 +72,7 @@ bool AttrHasLen(nlattr* attr, int minLength)
 
 std::string LibnlFailure(const char* operation, int result)
 {
-	return std::format("{} ({})", operation, result);
+	return fmt::format("{} ({})", operation, result);
 }
 
 bool TryGetU32(nlattr* attr, uint32_t& out)
@@ -526,7 +526,7 @@ void NL80211Scanner::InitNl()
 	if (_ifindex == 0)
 	{
 		CleanupNl();
-		throw ScanError(std::format("Interface '{}' not found", _iface));
+		throw ScanError(fmt::format("Interface '{}' not found", _iface));
 	}
 }
 
@@ -671,7 +671,7 @@ bool NL80211Scanner::TriggerScan()
 	// error.
 	if (_triggerErrno != 0 && _triggerErrno != EBUSY)
 	{
-		_lastError = std::format("Trigger scan failed ({})", _triggerErrno);
+		_lastError = fmt::format("Trigger scan failed ({})", _triggerErrno);
 		nl_socket_free(mcSock);
 		return false;
 	}
@@ -704,7 +704,7 @@ bool NL80211Scanner::TriggerScan()
 				poll(&pfd, 1, static_cast<int>(std::min(remaining, 500L)));
 			if (pollResult < 0)
 			{
-				_lastError = std::format(
+				_lastError = fmt::format(
 					"Failed while waiting for scan events ({})", errno);
 				break;
 			}
@@ -869,7 +869,7 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 	{
 		auto* macBytes =
 			static_cast<uint8_t*>(nla_data(bssAttrs[NL80211_BSS_BSSID]));
-		network._bssid = std::format(
+		network._bssid = fmt::format(
 			"{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", macBytes[0],
 			macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
 	}
@@ -918,7 +918,7 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 
 void NL80211Scanner::StoreNlError(nlmsgerr* error)
 {
-	_lastError = std::format("Netlink error: {} ({})", strerror(-error->error),
+	_lastError = fmt::format("Netlink error: {} ({})", strerror(-error->error),
 							 -error->error);
 }
 

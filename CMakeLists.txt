@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.22)
 project(wifiscan CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -19,6 +19,9 @@ set(FTXUI_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(FTXUI_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/ftxui)
 
+set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/fmt)
+
 add_executable(wifiscan
 	src/main.cpp
 	src/wifi/Network.cpp
@@ -34,6 +37,7 @@ target_include_directories(wifiscan PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(wifiscan PRIVATE
 	PkgConfig::NL3 PkgConfig::NL_GENL
 	ftxui::component ftxui::dom ftxui::screen
+	fmt::fmt
 )
 target_compile_options(wifiscan PRIVATE -Wall -Wextra -Wpedantic)
 

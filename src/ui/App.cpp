@@ -6,7 +6,7 @@
 #include "Theme.hpp"
 #include <chrono>
 #include <ctime>
-#include <format>
+#include <fmt/format.h>
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
@@ -21,7 +21,7 @@ static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 	auto timet = std::chrono::system_clock::to_time_t(wallTime);
 	struct tm localTime{};
 	localtime_r(&timet, &localTime);
-	return std::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour,
+	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour,
 					   localTime.tm_min, localTime.tm_sec);
 }
 

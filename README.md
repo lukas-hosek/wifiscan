@@ -17,15 +17,15 @@ sudo wifiscan wlan0
 
 ## Requirements
 
-- GCC 14+ (for C++23 `std::print`, `std::format`, `std::jthread`)
-- CMake 3.28+
+- GCC 12+ (C++20)
+- CMake 3.22+
 - libnl: `sudo apt install libnl-3-dev libnl-genl-3-dev`
 - Root / `CAP_NET_ADMIN` to read scan results
 
 ## Install
 
 ```bash
-# Clone with submodules (includes FTXUI)
+# Clone with submodules (includes FTXUI anf fmt)
 git clone --recurse-submodules https://github.com/lukas-hosek/wifiscan.git
 cd wifiscan
 

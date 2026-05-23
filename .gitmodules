@@ -1,3 +1,6 @@
 [submodule "third_party/ftxui"]
 	path = third_party/ftxui
 	url = https://github.com/ArthurSonzogni/FTXUI.git
+[submodule "third_party/fmt"]
+	path = third_party/fmt
+	url = https://github.com/fmtlib/fmt.git
