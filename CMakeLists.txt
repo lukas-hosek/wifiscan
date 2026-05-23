@@ -36,3 +36,6 @@ target_link_libraries(wifiscan PRIVATE
 	ftxui::component ftxui::dom ftxui::screen
 )
 target_compile_options(wifiscan PRIVATE -Wall -Wextra -Wpedantic)
+
+include(GNUInstallDirs)
+install(TARGETS wifiscan RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
