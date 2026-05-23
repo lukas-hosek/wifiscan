@@ -24,6 +24,9 @@
 			"args": [],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
+			// externalConsole MUST stay true — FTXUI uses the alternate
+			// screen buffer and renders garbled output if launched into
+			// VS Code's integrated terminal.
 			"externalConsole": true,
 			"MIMode": "gdb",
 			"setupCommands": [

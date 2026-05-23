@@ -774,6 +774,8 @@ std::vector<Network> NL80211Scanner::GetNetworks()
 		return {};
 	}
 
+	// NL80211_CMD_GET_SCAN requires CAP_NET_ADMIN — running unprivileged
+	// surfaces as EPERM from nl_recvmsgs below and is reported via _lastError.
 	if (!genlmsg_put(message, NL_AUTO_PORT, NL_AUTO_SEQ, _nl80211Id, 0,
 					 NLM_F_DUMP, NL80211_CMD_GET_SCAN, 0))
 	{
@@ -851,6 +853,8 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 
 	Network network{};
 
+	// NL80211_BSS_SIGNAL_MBM is reported in mBm (1/100 dBm), not dBm — divide
+	// by 100 to get the conventional dBm value.
 	int32_t signalMbm = 0;
 	if (TryGetS32(bssAttrs[NL80211_BSS_SIGNAL_MBM], signalMbm))
 		network._signalDbm = signalMbm / 100;
@@ -872,6 +876,10 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 			macBytes[1], macBytes[2], macBytes[3], macBytes[4], macBytes[5]);
 	}
 
+	// SSID is NOT a direct BSS attribute — there is no NL80211_BSS_SSID. It
+	// lives inside the NL80211_BSS_INFORMATION_ELEMENTS blob as IE element
+	// type 0 (see ie::SSID in ScanIes). Length 0 → hidden network.
+	//
 	// IE blob layout: repeated [elementType:u8][length:u8][data:length bytes].
 	// ScanIes walks every IE (no early-break) and pulls SSID, BSS Load and the
 	// capability/operation IEs we use for width/standard/security/rate

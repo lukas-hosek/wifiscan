@@ -81,6 +81,10 @@ void App::Run()
 		}
 	);
 
+	// While Loop() is running, FTXUI owns the alternate screen buffer — any
+	// std::print / printf / std::cout from any thread will corrupt the
+	// display. Surface diagnostic messages through _statusMsg (rendered by
+	// StatusBarPanel) instead.
 	_screen.Loop(component);
 	// _scanThread destructor fires here: request_stop() + join()
 }
