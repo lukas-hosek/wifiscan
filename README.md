@@ -1,6 +1,8 @@
 # wifiscan
 
-A C++23 terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
+A C++ terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
+
+<img width="1732" height="1288" alt="image" src="https://github.com/user-attachments/assets/d69b3802-4750-4796-8fe1-405189a268b3" />
 
 ## How to use:
 
