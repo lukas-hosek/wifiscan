@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// wifiscan - copyright (c) 2026 Lukas Hosek
 #include "ui/App.hpp"
 #include "wifi/NL80211Scanner.hpp"
 #include <cstdio>

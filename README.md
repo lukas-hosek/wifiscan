@@ -27,7 +27,7 @@ sudo ./wifiscan wlan0
 
 ```bash
 # Clone with submodules (includes FTXUI)
-git clone --recurse-submodules https://github.com/yourusername/wifiscan.git
+git clone --recurse-submodules https://github.com/lukas-hosek/wifiscan.git
 cd wifiscan
 
 # If you already cloned without --recurse-submodules
@@ -39,4 +39,8 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 # Build
 cmake --build build -j$(nproc)
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 

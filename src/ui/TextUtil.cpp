@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// wifiscan - copyright (c) 2026 Lukas Hosek
 #include "TextUtil.hpp"
 #include <cstdint>
 #include <string_view>

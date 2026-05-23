@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// wifiscan - copyright (c) 2026 Lukas Hosek
 #include "NetworkTablePanel.hpp"
 #include "TextUtil.hpp"
 #include "Theme.hpp"
