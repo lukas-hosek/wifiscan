@@ -168,7 +168,7 @@ static const SortableColumn kSortableColumns[] = {
 	 { return a._ssid < b._ssid; }},
 	{ColumnType::Channel,
 	 [](const wifi::Network& a, const wifi::Network& b)
-	 { return a._channel < b._channel; }},
+	 { return a._band != b._band ? a._band < b._band : a._channel < b._channel; }},
 };
 
 using VisibilityMap = std::array<bool, std::size(kColumns)>;

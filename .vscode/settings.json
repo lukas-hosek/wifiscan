@@ -1,5 +1,5 @@
 {
-	"editor.formatOnSave": true,
+	"editor.formatOnSave": false,
 	"C_Cpp.clang_format_style": "file",
 	"C_Cpp.clang_format_fallbackStyle": "none",
 	"[cpp]": {
@@ -7,9 +7,16 @@
 	},
 	"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 	"cmake.buildDirectory": "${workspaceFolder}/build",
-	"cmake.configureArgs": ["-DCMAKE_BUILD_TYPE=Debug"],
-	"cmake.buildArgs": ["-j8"],
+	"cmake.configureArgs": [
+		"-DCMAKE_BUILD_TYPE=Debug"
+	],
+	"cmake.buildArgs": [
+		"-j8"
+	],
 	"C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
-	"files.associations": { "*.hpp": "cpp", "*.cpp": "cpp" },
+	"files.associations": {
+		"*.hpp": "cpp",
+		"*.cpp": "cpp"
+	},
 	"terminal.integrated.defaultProfile.linux": "bash"
 }
