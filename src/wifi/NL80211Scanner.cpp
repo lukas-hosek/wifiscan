@@ -22,25 +22,44 @@ namespace wifi
 namespace
 {
 
-// Pointers + lengths for the IEs we care about. Pointers are non-owning and
-// remain valid for the lifetime of the surrounding netlink message buffer.
+// IE (Information Element) payloads extracted from the raw NL80211_BSS_INFORMATION_ELEMENTS
+// blob. Each IE in the blob has the form [type:u8][length:u8][payload…]; these pointers
+// point directly into the netlink message buffer (non-owning) and are valid only for the
+// lifetime of that buffer. A null pointer means the AP did not advertise that element.
 struct ParsedIes
 {
+	// 802.11n HT Capabilities IE (id 45) — encodes MIMO streams, short GI, LDPC, etc.
 	const uint8_t* ht{nullptr};
 	uint8_t htLen{0};
+
+	// 802.11n HT Operation IE (id 61) — primary channel + secondary-channel offset (HT40±).
 	const uint8_t* htOp{nullptr};
 	uint8_t htOpLen{0};
+
+	// 802.11ac VHT Capabilities IE (id 191) — MCS map, max MPDU size, SU/MU-MIMO flags.
 	const uint8_t* vht{nullptr};
 	uint8_t vhtLen{0};
+
+	// 802.11ac VHT Operation IE (id 192) — channel width (80/160 MHz) + centre frequencies.
 	const uint8_t* vhtOp{nullptr};
 	uint8_t vhtOpLen{0};
+
+	// RSN (Robust Security Network) IE (id 48) — WPA2/WPA3 cipher suites + AKM list.
 	const uint8_t* rsn{nullptr};
 	uint16_t rsnLen{0};
+
+	// BSS Load IE (id 11) — station count, channel utilisation (0–255), available admission capacity.
 	const uint8_t* bssLoad{nullptr};
 	uint8_t bssLoadLen{0};
+
+	// WPA1 Vendor-Specific IE (id 221, Microsoft OUI DD-50-F2 type 01) — legacy WPA-TKIP signalling.
 	const uint8_t* wpa1{nullptr};
 	uint16_t wpa1Len{0};
+
+	// True if any 802.11ax HE Capabilities or HE Operation Extension IE was seen (id 255, ext 35/36).
 	bool he{false};
+
+	// True if any 802.11be EHT Capabilities or EHT Operation Extension IE was seen (id 255, ext 108/106).
 	bool eht{false};
 };
 
