@@ -16,8 +16,6 @@ ftxui::Color Color(UiColor element)
 		static const ftxui::Color c = ftxui::Color::RGB(0, 180, 0);
 		return c;
 	}
-	case UiColor::BannerText:
-		return ftxui::Color::CyanLight;
 	case UiColor::ColumnHeader:
 		return ftxui::Color::CyanLight;
 	case UiColor::DataValue:

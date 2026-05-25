@@ -15,22 +15,6 @@ int Network::SignalQuality() const noexcept
 	return (clamped - kMinDbm) * 100 / (kMaxDbm - kMinDbm);
 }
 
-int Network::SignalBars() const noexcept
-{
-	int quality = SignalQuality();
-	if (quality >= 80)
-		return 5;
-	if (quality >= 60)
-		return 4;
-	if (quality >= 40)
-		return 3;
-	if (quality >= 20)
-		return 2;
-	if (quality >= 5)
-		return 1;
-	return 0;
-}
-
 int FreqToChannel(uint32_t frequencyMhz) noexcept
 {
 	if (frequencyMhz == 2484)

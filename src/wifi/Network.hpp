@@ -100,9 +100,6 @@ struct Network
 
 	// Returns signal quality mapped linearly from [-100, -30] dBm to [0, 100]
 	[[nodiscard]] int SignalQuality() const noexcept;
-
-	// Returns a 0–5 bar count suitable for a signal strength indicator
-	[[nodiscard]] int SignalBars() const noexcept;
 };
 
 int FreqToChannel(uint32_t frequencyMhz) noexcept;

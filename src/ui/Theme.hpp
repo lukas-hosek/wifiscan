@@ -10,7 +10,6 @@ enum class UiColor
 {
 	AppBackground,
 	Border,
-	BannerText,
 	ColumnHeader,
 	DataValue,
 	StatusText,
