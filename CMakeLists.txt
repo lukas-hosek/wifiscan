@@ -18,6 +18,8 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+option(WIFISCAN_ENABLE_GUI "Build the ImGui graphical UI (--gui)" ON)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(NL3     REQUIRED IMPORTED_TARGET libnl-3.0)
 pkg_check_modules(NL_GENL REQUIRED IMPORTED_TARGET libnl-genl-3.0)
@@ -50,6 +52,37 @@ target_link_libraries(wifiscan PRIVATE
 	fmt::fmt
 )
 target_compile_options(wifiscan PRIVATE -Wall -Wextra -Wpedantic)
+
+if(WIFISCAN_ENABLE_GUI)
+	pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
+	find_package(OpenGL REQUIRED)
+
+	# Dear ImGui core + GLFW/OpenGL3 backends, built as their own target so the
+	# project's strict warning flags don't apply to vendored ImGui sources.
+	add_library(imgui STATIC
+		third_party/imgui/imgui.cpp
+		third_party/imgui/imgui_draw.cpp
+		third_party/imgui/imgui_tables.cpp
+		third_party/imgui/imgui_widgets.cpp
+		third_party/imgui/backends/imgui_impl_glfw.cpp
+		third_party/imgui/backends/imgui_impl_opengl3.cpp
+	)
+	target_include_directories(imgui PUBLIC
+		third_party/imgui
+		third_party/imgui/backends
+	)
+	target_link_libraries(imgui PUBLIC PkgConfig::GLFW OpenGL::GL)
+
+	target_sources(wifiscan PRIVATE
+		src/gui/Theme.cpp
+		src/gui/StatusBarPanel.cpp
+		src/gui/NetworkTablePanel.cpp
+		src/gui/SpectrumPanel.cpp
+		src/gui/App.cpp
+	)
+	target_link_libraries(wifiscan PRIVATE imgui)
+	target_compile_definitions(wifiscan PRIVATE WIFISCAN_GUI)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS wifiscan RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

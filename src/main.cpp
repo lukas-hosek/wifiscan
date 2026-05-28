@@ -7,12 +7,16 @@
 #include <cstdlib>
 #include <string>
 #include <string_view>
+#ifdef WIFISCAN_GUI
+#include "gui/App.hpp"
+#endif
 
 int main(int argc, char* argv[])
 {
 	try
 	{
 		bool nonInteractive = false;
+		bool gui = false;
 		std::string ifaceName;
 
 		for (int i = 1; i < argc; ++i)
@@ -20,6 +24,8 @@ int main(int argc, char* argv[])
 			std::string_view arg = argv[i];
 			if (arg == "--non-interactive")
 				nonInteractive = true;
+			else if (arg == "--gui")
+				gui = true;
 			else if (ifaceName.empty() && !arg.empty() && arg[0] != '-')
 				ifaceName = std::string(arg);
 		}
@@ -30,6 +36,20 @@ int main(int argc, char* argv[])
 
 		if (nonInteractive)
 			return ui::RunNonInteractive(*scanner);
+
+		if (gui)
+		{
+#ifdef WIFISCAN_GUI
+			gui::App app(*scanner);
+			app.Run();
+			return EXIT_SUCCESS;
+#else
+			fprintf(stderr,
+					"--gui not built; reconfigure with "
+					"-DWIFISCAN_ENABLE_GUI=ON\n");
+			return EXIT_FAILURE;
+#endif
+		}
 
 		ui::App app(*scanner);
 		app.Run();

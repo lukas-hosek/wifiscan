@@ -16,6 +16,9 @@ sudo wifiscan wlan0
 
 # Non-interactive mode performs a single scan and dumps the network list to a terminal:
 sudo wifiscan --non-interactive
+
+# Graphical mode opens a Dear ImGui window (requires a display; use sudo -E to keep $DISPLAY):
+sudo -E wifiscan --gui
 ```
 
 ## Requirements
@@ -24,11 +27,12 @@ sudo wifiscan --non-interactive
 - CMake 3.22+
 - libnl: `sudo apt install libnl-3-dev libnl-genl-3-dev`
 - Root / `CAP_NET_ADMIN` to read scan results
+- For the optional `--gui` mode (built by default): GLFW + OpenGL — `sudo apt install libglfw3-dev`. Disable with `-DWIFISCAN_ENABLE_GUI=OFF` for a terminal-only build with no graphics dependencies.
 
 ## Install
 
 ```bash
-# Clone with submodules (includes FTXUI anf fmt)
+# Clone with submodules (includes FTXUI, fmt and Dear ImGui)
 git clone --recurse-submodules https://github.com/lukas-hosek/wifiscan.git
 cd wifiscan
 
