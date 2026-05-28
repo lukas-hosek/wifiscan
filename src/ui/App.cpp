@@ -53,7 +53,9 @@ void App::ScanLoop(std::stop_token stopToken)
 				_statusMsg = "Error: " + lastError;
 		}
 
-		_screen.PostEvent(ftxui::Event::Custom);
+		// Post() goes through FTXUI's mutex-guarded task queue; PostEvent()
+		// pushes into an unsynchronized buffer and data-races the render thread.
+		_screen.Post(ftxui::Event::Custom);
 
 		_scanner.TriggerScan(stopToken);
 	}
