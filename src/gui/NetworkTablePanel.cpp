@@ -112,12 +112,10 @@ VisibilityMap ComputeVisibility(int availColumns)
 }
 
 bool CompareNetworks(const wifi::Network& a, const wifi::Network& b,
-					 ColumnType type, bool ascending)
+	ColumnType type, bool ascending)
 {
 	auto order = [ascending](auto lhs, auto rhs)
-	{
-		return ascending ? lhs < rhs : lhs > rhs;
-	};
+	{ return ascending ? lhs < rhs : lhs > rhs; };
 
 	switch (type)
 	{
@@ -150,10 +148,7 @@ bool CompareNetworks(const wifi::Network& a, const wifi::Network& b,
 	return a._ssid < b._ssid;
 }
 
-ImVec4 ToVec(ImU32 c)
-{
-	return ImGui::ColorConvertU32ToFloat4(c);
-}
+ImVec4 ToVec(ImU32 c) { return ImGui::ColorConvertU32ToFloat4(c); }
 
 void RenderCell(ColumnType type, const wifi::Network& net)
 {
@@ -161,51 +156,53 @@ void RenderCell(ColumnType type, const wifi::Network& net)
 	{
 	case ColumnType::BSSID:
 		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::Muted)), "%s",
-						   net._bssid.c_str());
+			net._bssid.c_str());
 		break;
 	case ColumnType::Channel:
-		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::Accent)), "%d",
-						   net._channel);
+		ImGui::TextColored(
+			ToVec(theme::Color(theme::UiColor::Accent)), "%d", net._channel);
 		break;
 	case ColumnType::Band:
 		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "%s",
-						   wifi::BandLabel(net._band).c_str());
+			wifi::BandLabel(net._band).c_str());
 		break;
 	case ColumnType::Width:
 		if (net._widthMhz > 0)
 			ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)),
-							   "%u", net._widthMhz);
+				"%u", net._widthMhz);
 		else
-			ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "-");
+			ImGui::TextColored(
+				ToVec(theme::Color(theme::UiColor::DataValue)), "-");
 		break;
 	case ColumnType::Standard:
 		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "%s",
-						   wifi::StandardLabel(net._standard).c_str());
+			wifi::StandardLabel(net._standard).c_str());
 		break;
 	case ColumnType::Security:
 		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "%s",
-						   wifi::SecurityLabel(net._security).c_str());
+			wifi::SecurityLabel(net._security).c_str());
 		break;
 	case ColumnType::Rate:
 		if (net._maxRateMbps > 0)
 			ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)),
-							   "%uM", net._maxRateMbps);
+				"%uM", net._maxRateMbps);
 		else
-			ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "-");
+			ImGui::TextColored(
+				ToVec(theme::Color(theme::UiColor::DataValue)), "-");
 		break;
 	case ColumnType::Signal:
 		ImGui::TextColored(ToVec(theme::SignalColor(net._signalDbm)), "%d dBm",
-						   net._signalDbm);
+			net._signalDbm);
 		break;
 	case ColumnType::Quality:
 	{
 		int quality = net.SignalQuality();
 		char label[16];
 		std::snprintf(label, sizeof(label), "%d%%", quality);
-		ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-							  ToVec(theme::SignalColor(net._signalDbm)));
+		ImGui::PushStyleColor(
+			ImGuiCol_PlotHistogram, ToVec(theme::SignalColor(net._signalDbm)));
 		ImGui::ProgressBar(static_cast<float>(quality) / 100.0f,
-						   ImVec2(-FLT_MIN, 0.0f), label);
+			ImVec2(-FLT_MIN, 0.0f), label);
 		ImGui::PopStyleColor();
 		break;
 	}
@@ -240,13 +237,13 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 	if (networks.empty())
 	{
 		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::Muted)),
-						   "  (no networks - try: sudo wifiscan)");
+			"  (no networks - try: sudo wifiscan)");
 		return;
 	}
 
 	float charW = ImGui::CalcTextSize("0").x;
-	int availColumns =
-		static_cast<int>(ImGui::GetContentRegionAvail().x / std::max(1.0f, charW));
+	int availColumns = static_cast<int>(
+		ImGui::GetContentRegionAvail().x / std::max(1.0f, charW));
 	VisibilityMap visible = ComputeVisibility(availColumns);
 
 	std::vector<const ColumnDescriptor*> visCols;
@@ -256,24 +253,25 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 			visCols.push_back(&kColumns[i]);
 	}
 
-	constexpr ImGuiTableFlags kFlags =
-		ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX |
-		ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV |
-		ImGuiTableFlags_Sortable;
+	constexpr ImGuiTableFlags kFlags = ImGuiTableFlags_ScrollY |
+		ImGuiTableFlags_ScrollX | ImGuiTableFlags_RowBg |
+		ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Sortable;
 
-	if (!ImGui::BeginTable("networks", static_cast<int>(visCols.size()), kFlags))
+	if (!ImGui::BeginTable(
+			"networks", static_cast<int>(visCols.size()), kFlags))
 		return;
 
 	const ImGuiStyle& style = ImGui::GetStyle();
 	float padX = style.CellPadding.x * 2.0f;
 	float arrowW = ImGui::GetFontSize() + style.ItemInnerSpacing.x;
 
-	// Sortable columns mirror ui::NetworkTablePanel::kSortableColumns. Only these
-	// get a sort arrow, so the narrow columns keep room for their header text.
+	// Sortable columns mirror ui::NetworkTablePanel::kSortableColumns. Only
+	// these get a sort arrow, so the narrow columns keep room for their header
+	// text.
 	auto isSortable = [](ColumnType type)
 	{
 		return type == ColumnType::SSID || type == ColumnType::Channel ||
-			   type == ColumnType::Signal;
+			type == ColumnType::Signal;
 	};
 
 	for (const ColumnDescriptor* col : visCols)
@@ -284,7 +282,7 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 			colFlags |= ImGuiTableColumnFlags_NoSort;
 		if (col->type == ColumnType::Signal)
 			colFlags |= ImGuiTableColumnFlags_DefaultSort |
-						ImGuiTableColumnFlags_PreferSortDescending;
+				ImGuiTableColumnFlags_PreferSortDescending;
 
 		// Width must fit the header text (proportional font) and cell padding,
 		// plus the sort arrow on sortable columns, otherwise ImGui clips the
@@ -293,8 +291,8 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 			std::max(col->width * charW, ImGui::CalcTextSize(col->header).x);
 		float colW = contentW + padX + (sortable ? arrowW : 0.0f);
 
-		ImGui::TableSetupColumn(col->header, colFlags, colW,
-								static_cast<ImGuiID>(col->type));
+		ImGui::TableSetupColumn(
+			col->header, colFlags, colW, static_cast<ImGuiID>(col->type));
 	}
 	ImGui::TableSetupScrollFreeze(0, 1);
 	ImGui::TableHeadersRow();
@@ -308,8 +306,8 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 			ColumnType type = static_cast<ColumnType>(spec.ColumnUserID);
 			bool ascending = spec.SortDirection == ImGuiSortDirection_Ascending;
 			std::stable_sort(sorted.begin(), sorted.end(),
-							 [&](const wifi::Network& a, const wifi::Network& b)
-							 { return CompareNetworks(a, b, type, ascending); });
+				[&](const wifi::Network& a, const wifi::Network& b)
+				{ return CompareNetworks(a, b, type, ascending); });
 		}
 		specs->SpecsDirty = false;
 	}
@@ -331,13 +329,12 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 			{
 				std::string ssid = net._ssid.empty() ? "???" : net._ssid;
 				std::string label = (net._connected ? "* " : "  ") + ssid;
-				ImU32 textColor =
-					net._connected
-						? theme::Color(theme::UiColor::ConnectedNetwork)
-						: theme::Color(theme::UiColor::NetworkRow);
+				ImU32 textColor = net._connected
+					? theme::Color(theme::UiColor::ConnectedNetwork)
+					: theme::Color(theme::UiColor::NetworkRow);
 				ImGui::PushStyleColor(ImGuiCol_Text, ToVec(textColor));
 				if (ImGui::Selectable(label.c_str(), isSelected,
-									  ImGuiSelectableFlags_SpanAllColumns))
+						ImGuiSelectableFlags_SpanAllColumns))
 					_selectedRow = row;
 				ImGui::PopStyleColor();
 				if (isSelected && selectionChanged)

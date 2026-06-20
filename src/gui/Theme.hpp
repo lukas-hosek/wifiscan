@@ -41,7 +41,8 @@ enum class UiColor
 ImU32 Color(UiColor element);
 
 // Returns a color scaled by signal strength, using the same thresholds as
-// ui::theme::SignalColor: >= -60 dBm strong, >= -70 good, >= -80 medium, else weak.
+// ui::theme::SignalColor: >= -60 dBm strong, >= -70 good, >= -80 medium, else
+// weak.
 ImU32 SignalColor(int signalDbm);
 
 } // namespace gui::theme

@@ -9,6 +9,6 @@ AlignConsecutiveDeclarations: None
 AlignConsecutiveAssignments: None
 AccessModifierOffset: -4
 PointerAlignment: Left
-AlignAfterOpenBracket: BlockIndent
+AlignAfterOpenBracket: DontAlign
 ContinuationIndentWidth: 4
 AlignOperands: DontAlign
