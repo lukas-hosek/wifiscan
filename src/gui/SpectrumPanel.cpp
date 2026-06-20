@@ -148,18 +148,59 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 		return -1;
 	};
 
-	if (!ImGui::BeginChild("spectrumPlot", ImVec2(0, 0), false,
-						   ImGuiWindowFlags_HorizontalScrollbar))
+	// Shared geometry — computed once so both children stay vertically aligned.
+	float availH = ImGui::GetContentRegionAvail().y;
+	float lineH = ImGui::GetTextLineHeight();
+	float scale = ImGui::GetStyle().FontScaleDpi;
+	float scrollH = ImGui::GetStyle().ScrollbarSize;
+	float topMargin = lineH + 4.0f;
+	float bottomAxis = lineH + 4.0f;
+	// AlwaysHorizontalScrollbar always reserves scrollH at the bottom of the right
+	// child; subtracting it here keeps label positions in sync with bar heights.
+	float barAreaH = std::max(1.0f, availH - topMargin - bottomAxis - scrollH);
+	float leftMarginW = ImGui::CalcTextSize("-100").x + 8.0f * scale;
+
+	// --- Left child: pinned dBm labels ---
+	ImGui::BeginChild("yAxis", ImVec2(leftMarginW, availH), false,
+					  ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	{
+		ImVec2 lp = ImGui::GetWindowPos();
+		ImDrawList* ld = ImGui::GetWindowDrawList();
+		float baselineAbsY = lp.y + topMargin + barAreaH;
+
+		ld->AddLine(ImVec2(lp.x + leftMarginW - 1.0f, lp.y),
+					ImVec2(lp.x + leftMarginW - 1.0f, baselineAbsY),
+					theme::Color(theme::UiColor::Border), 1.0f);
+
+		for (int dbm = 0; dbm >= -100; dbm -= 20)
+		{
+			float fraction = (dbm + 100) / 100.0f;
+			float y = baselineAbsY - fraction * barAreaH;
+			std::string label = std::to_string(dbm);
+			ImVec2 ts = ImGui::CalcTextSize(label.c_str());
+			ld->AddText(ImVec2(lp.x + leftMarginW - ts.x - 4.0f * scale,
+							   y - ts.y * 0.5f),
+						theme::Color(theme::UiColor::Muted), label.c_str());
+		}
+
+		ImGui::Dummy(ImVec2(leftMarginW, availH));
+	}
+	ImGui::EndChild();
+	ImGui::SameLine(0.0f, 0.0f);
+
+	// --- Right child: scrollable spectrum ---
+	if (!ImGui::BeginChild("spectrumPlot", ImVec2(0.0f, availH), false,
+						   ImGuiWindowFlags_HorizontalScrollbar |
+							   ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		ImGui::EndChild();
 		return;
 	}
 
 	ImVec2 avail = ImGui::GetContentRegionAvail();
-	float minSlotW = kMinSlotW * ImGui::GetStyle().FontScaleDpi;
+	float minSlotW = kMinSlotW * scale;
 	float slotW = std::max(minSlotW, avail.x / std::max(1, channelCount));
 	float plotW = slotW * channelCount;
-	float plotH = avail.y;
 
 	// Left/Right arrow keys scroll the spectrum by one slot (global shortcut).
 	if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, true))
@@ -168,13 +209,20 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 		ImGui::SetScrollX(ImGui::GetScrollX() - slotW);
 
 	ImVec2 origin = ImGui::GetCursorScreenPos();
-	float lineH = ImGui::GetTextLineHeight();
-	float topMargin = lineH + 4.0f;	   // room for the SSID label above the tallest bar
-	float bottomAxis = lineH + 4.0f;   // room for channel-number ticks
-	float barAreaH = std::max(1.0f, plotH - topMargin - bottomAxis);
-	float baselineY = origin.y + topMargin + barAreaH;
+	ImVec2 winPos = ImGui::GetWindowPos();
+	float baselineAbsY = winPos.y + topMargin + barAreaH;
 
 	ImDrawList* draw = ImGui::GetWindowDrawList();
+
+	// Dim grey horizontal grid lines at every 20 dBm, drawn before bars.
+	constexpr ImU32 kGridColor = IM_COL32(60, 60, 60, 200);
+	for (int dbm = 0; dbm >= -100; dbm -= 20)
+	{
+		float fraction = (dbm + 100) / 100.0f;
+		float y = baselineAbsY - fraction * barAreaH;
+		draw->AddLine(ImVec2(origin.x, y), ImVec2(origin.x + plotW, y),
+					  kGridColor, 1.0f);
+	}
 
 	// Which channels are a primary channel of some visible network (for tick colour).
 	std::unordered_set<int> primaries;
@@ -186,7 +234,8 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 	}
 
 	// Baseline + channel-number ticks.
-	draw->AddLine(ImVec2(origin.x, baselineY), ImVec2(origin.x + plotW, baselineY),
+	draw->AddLine(ImVec2(origin.x, baselineAbsY),
+				  ImVec2(origin.x + plotW, baselineAbsY),
 				  theme::Color(theme::UiColor::Border), 1.0f);
 	for (int i = 0; i < channelCount; ++i)
 	{
@@ -197,7 +246,7 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 		ImU32 c = primaries.count(channel)
 					  ? theme::Color(theme::UiColor::DataValue)
 					  : theme::Color(theme::UiColor::Muted);
-		draw->AddText(ImVec2(cx - ts.x * 0.5f, baselineY + 2.0f), c, label.c_str());
+		draw->AddText(ImVec2(cx - ts.x * 0.5f, baselineAbsY + 2.0f), c, label.c_str());
 	}
 
 	// One outlined bar per network in this band.
@@ -217,15 +266,16 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 			maxSlot = std::max(maxSlot, s);
 		}
 		if (maxSlot < 0)
-			continue; // network's channels not in this band's list
+			continue;
 
 		float xLeft = origin.x + minSlot * slotW;
 		float xRight = origin.x + (maxSlot + 1) * slotW;
-		float barH = static_cast<float>(net.SignalQuality()) / 100.0f * barAreaH;
-		float barTop = baselineY - barH;
+		int clampedDbm = std::clamp((int)net._signalDbm, -100, 0);
+		float barH = (clampedDbm + 100) / 100.0f * barAreaH;
+		float barTop = baselineAbsY - barH;
 		ImU32 color = OutlineColor(net);
 
-		draw->AddRect(ImVec2(xLeft, barTop), ImVec2(xRight, baselineY), color, 0.0f,
+		draw->AddRect(ImVec2(xLeft, barTop), ImVec2(xRight, baselineAbsY), color, 0.0f,
 					  0, 2.0f);
 
 		std::string ssid = net._ssid.empty() ? "???" : net._ssid;
@@ -236,7 +286,7 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 	}
 
 	// Reserve the content extent so the child's scrollbars/ranges are correct.
-	ImGui::Dummy(ImVec2(plotW, plotH));
+	ImGui::Dummy(ImVec2(plotW, availH));
 
 	ImGui::EndChild();
 }
