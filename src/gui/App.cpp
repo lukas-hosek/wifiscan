@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <fmt/format.h>
 #include <imgui.h>
@@ -23,6 +24,13 @@ static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 	struct tm localTime{};
 	localtime_r(&timet, &localTime);
 	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour, localTime.tm_min, localTime.tm_sec);
+}
+
+bool IsGuiSupported()
+{
+	const char* wayland = std::getenv("WAYLAND_DISPLAY");
+	const char* x11 = std::getenv("DISPLAY");
+	return (wayland != nullptr && wayland[0] != '\0') || (x11 != nullptr && x11[0] != '\0');
 }
 
 App::App(wifi::IScanner& scanner) : _scanner(scanner), _statusBarPanel(scanner) {}

@@ -3,7 +3,7 @@
 #pragma once
 #include "IPanel.hpp"
 
-namespace ui
+namespace tui
 {
 
 class SpectrumPanel : public IPanel
@@ -24,4 +24,4 @@ private:
 	bool _hideConnected{false};
 };
 
-} // namespace ui
+} // namespace tui

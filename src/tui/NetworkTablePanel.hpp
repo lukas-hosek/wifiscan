@@ -3,7 +3,7 @@
 #pragma once
 #include "IPanel.hpp"
 
-namespace ui
+namespace tui
 {
 
 enum class ColumnType
@@ -37,4 +37,4 @@ private:
 	ColumnType _sortColumn{ColumnType::Signal};
 };
 
-} // namespace ui
+} // namespace tui

@@ -5,7 +5,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
 
-namespace ui
+namespace tui
 {
 
 StatusBarPanel::StatusBarPanel(wifi::IScanner& scanner) : _scanner(scanner) {}
@@ -39,4 +39,4 @@ ftxui::Element StatusBarPanel::Render(
 	});
 }
 
-} // namespace ui
+} // namespace tui

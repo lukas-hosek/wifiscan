@@ -11,7 +11,7 @@
 #include <functional>
 #include <ranges>
 
-namespace ui
+namespace tui
 {
 
 using namespace utils;
@@ -346,4 +346,4 @@ ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& netwo
 	return vbox(rows) | yframe;
 }
 
-} // namespace ui
+} // namespace tui

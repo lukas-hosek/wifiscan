@@ -49,7 +49,7 @@ std::span<const int> BandChannels(int bandIndex)
 // Returns the 20-MHz channel slots an AP occupies based on its primary channel
 // + reported operating width. Returns {primary} when the width is unknown or we
 // lack the centre-frequency hint needed to span. Mirrors
-// ui::SpectrumPanel::CoveredChannels.
+// tui::SpectrumPanel::CoveredChannels.
 std::vector<int> CoveredChannels(const wifi::Network& net)
 {
 	int primary = net._channel;

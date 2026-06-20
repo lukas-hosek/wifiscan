@@ -15,7 +15,7 @@ namespace gui
 namespace
 {
 
-// Mirrors ui::NetworkTablePanel::ColumnType (src/tui/NetworkTablePanel.cpp).
+// Mirrors tui::NetworkTablePanel::ColumnType (src/tui/NetworkTablePanel.cpp).
 enum class ColumnType
 {
 	SSID,
@@ -40,7 +40,7 @@ struct ColumnDescriptor
 	int width;
 };
 
-// Display order + widths mirror ui::NetworkTablePanel::kColumns, except QUAL is
+// Display order + widths mirror tui::NetworkTablePanel::kColumns, except QUAL is
 // widened 2x (10 -> 20) for the GUI's progress bar.
 constexpr std::array<ColumnDescriptor, 10> kColumns = {{
 	{ColumnType::SSID, "SSID", 28},
@@ -55,7 +55,7 @@ constexpr std::array<ColumnDescriptor, 10> kColumns = {{
 	{ColumnType::Quality, "QUAL", 20},
 }};
 
-// Drop order mirrors ui::NetworkTablePanel::kDropOrder: first entry vanishes
+// Drop order mirrors tui::NetworkTablePanel::kDropOrder: first entry vanishes
 // first as the panel narrows. Types not listed are permanent.
 constexpr std::array<ColumnType, 4> kDropOrder = {
 	ColumnType::Rate,
@@ -76,7 +76,7 @@ int FindColumnIndex(ColumnType type)
 	return -1;
 }
 
-// Mirrors ui::NetworkTablePanel::ComputeVisibility. availColumns is the panel
+// Mirrors tui::NetworkTablePanel::ComputeVisibility. availColumns is the panel
 // width expressed in terminal-character units. The " | " separator between
 // visible columns counts as 3 units, exactly as in the FTXUI implementation.
 VisibilityMap ComputeVisibility(int availColumns)
@@ -252,7 +252,7 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks)
 	float padX = style.CellPadding.x * 2.0f;
 	float arrowW = ImGui::GetFontSize() + style.ItemInnerSpacing.x;
 
-	// Sortable columns mirror ui::NetworkTablePanel::kSortableColumns. Only
+	// Sortable columns mirror tui::NetworkTablePanel::kSortableColumns. Only
 	// these get a sort arrow, so the narrow columns keep room for their header
 	// text.
 	auto isSortable = [](ColumnType type)

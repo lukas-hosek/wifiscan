@@ -3,7 +3,7 @@
 #pragma once
 #include <ftxui/screen/color.hpp>
 
-namespace ui::theme
+namespace tui::theme
 {
 
 enum class UiColor
@@ -30,4 +30,4 @@ ftxui::Color Color(UiColor element);
 // SignalWeak
 ftxui::Color SignalColor(int signalDbm);
 
-} // namespace ui::theme
+} // namespace tui::theme

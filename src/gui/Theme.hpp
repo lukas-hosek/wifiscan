@@ -6,7 +6,7 @@
 namespace gui::theme
 {
 
-// Mirrors ui::theme::UiColor (src/tui/Theme.hpp) as RGB equivalents of the named
+// Mirrors tui::theme::UiColor (src/tui/Theme.hpp) as RGB equivalents of the named
 // FTXUI colors used by the terminal UI.
 enum class UiColor
 {
@@ -41,7 +41,7 @@ enum class UiColor
 ImU32 Color(UiColor element);
 
 // Returns a color scaled by signal strength, using the same thresholds as
-// ui::theme::SignalColor: >= -60 dBm strong, >= -70 good, >= -80 medium, else
+// tui::theme::SignalColor: >= -60 dBm strong, >= -70 good, >= -80 medium, else
 // weak.
 ImU32 SignalColor(int signalDbm);
 

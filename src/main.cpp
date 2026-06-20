@@ -11,34 +11,58 @@
 #include "gui/App.hpp"
 #endif
 
+// Which front-end to run. Resolved from command-line flags, falling back to
+// auto-detection when none is given.
+enum class UiType
+{
+	Undecided,
+	Gui,
+	Tui,
+	NonInteractive,
+};
+
 int main(int argc, char* argv[])
 {
 	try
 	{
-		bool nonInteractive = false;
-		bool gui = false;
+		UiType uiType = UiType::Undecided;
 		std::string ifaceName;
 
 		for (int i = 1; i < argc; ++i)
 		{
 			std::string_view arg = argv[i];
-			if (arg == "--non-interactive")
-				nonInteractive = true;
-			else if (arg == "--gui")
-				gui = true;
+			if (arg == "--gui")
+				uiType = UiType::Gui;
+			else if (arg == "--tui")
+				uiType = UiType::Tui;
+			else if (arg == "--non-interactive")
+				uiType = UiType::NonInteractive;
 			else if (ifaceName.empty() && !arg.empty() && arg[0] != '-')
 				ifaceName = std::string(arg);
+		}
+
+		// No UI flag given: auto-pick the GUI if the desktop supports it,
+		// otherwise the terminal UI.
+		if (uiType == UiType::Undecided)
+		{
+#ifdef WIFISCAN_GUI
+			uiType = gui::IsGuiSupported() ? UiType::Gui : UiType::Tui;
+#else
+			uiType = UiType::Tui;
+#endif
 		}
 
 		auto scanner = ifaceName.empty() ? std::make_unique<wifi::NL80211Scanner>()
 										 : std::make_unique<wifi::NL80211Scanner>(ifaceName);
 
-		if (nonInteractive)
+		switch (uiType)
+		{
+		case UiType::NonInteractive:
 		{
 			non_interactive::App app(*scanner);
 			return app.Run();
 		}
-		else if (gui)
+		case UiType::Gui:
 		{
 #ifdef WIFISCAN_GUI
 			gui::App app(*scanner);
@@ -51,11 +75,14 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 #endif
 		}
-		else
+		case UiType::Tui:
+		case UiType::Undecided:
+		default:
 		{
-			ui::App app(*scanner);
+			tui::App app(*scanner);
 			app.Run();
 			return EXIT_SUCCESS;
+		}
 		}
 	}
 	catch (const wifi::ScanError& error)

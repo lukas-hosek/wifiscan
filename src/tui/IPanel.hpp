@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace ui
+namespace tui
 {
 
 class IPanel
@@ -31,4 +31,4 @@ public:
 	}
 };
 
-} // namespace ui
+} // namespace tui

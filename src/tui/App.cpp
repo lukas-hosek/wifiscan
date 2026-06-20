@@ -9,7 +9,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
 
-namespace ui
+namespace tui
 {
 
 static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
@@ -124,4 +124,4 @@ ftxui::Element App::Render()
 		ftxui::bgcolor(theme::Color(theme::UiColor::AppBackground));
 }
 
-} // namespace ui
+} // namespace tui

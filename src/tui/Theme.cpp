@@ -2,7 +2,7 @@
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "Theme.hpp"
 
-namespace ui::theme
+namespace tui::theme
 {
 
 ftxui::Color Color(UiColor element)
@@ -59,4 +59,4 @@ ftxui::Color SignalColor(int signalDbm)
 	return Color(UiColor::SignalWeak);
 }
 
-} // namespace ui::theme
+} // namespace tui::theme

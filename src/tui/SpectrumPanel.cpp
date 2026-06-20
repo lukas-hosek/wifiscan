@@ -11,7 +11,7 @@
 #include <map>
 #include <span>
 
-namespace ui
+namespace tui
 {
 
 using namespace utils;
@@ -356,4 +356,4 @@ bool SpectrumPanel::HandleEvent(ftxui::Event event)
 	return false;
 }
 
-} // namespace ui
+} // namespace tui

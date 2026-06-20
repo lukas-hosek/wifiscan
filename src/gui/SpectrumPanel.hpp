@@ -13,7 +13,7 @@ namespace gui
 // WiFi-analyzer-style spectrum: each network is drawn as an unfilled outlined
 // bar spanning the channels it covers, peaking at its signal strength, with its
 // SSID centered above. Deliberately diverges from the per-channel-bar TUI view;
-// it only reuses the channel/coverage data helpers from ui::SpectrumPanel.
+// it only reuses the channel/coverage data helpers from tui::SpectrumPanel.
 class SpectrumPanel
 {
 public:

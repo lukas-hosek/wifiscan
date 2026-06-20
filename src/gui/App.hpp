@@ -16,7 +16,13 @@ struct GLFWwindow;
 namespace gui
 {
 
-// Graphical front-end (wifiscan --gui). Mirrors ui::App: owns the background
+// Cheap, side-effect-free probe for whether a graphical session is available.
+// Returns true when a display environment variable ($WAYLAND_DISPLAY or
+// $DISPLAY) is set and non-empty. Used to auto-select the GUI when no UI flag
+// was given.
+bool IsGuiSupported();
+
+// Graphical front-end (wifiscan --gui). Mirrors tui::App: owns the background
 // scan thread + shared state and runs the render loop on the main thread. Uses
 // a GLFW + OpenGL3 Dear ImGui backend instead of FTXUI.
 class App
@@ -32,7 +38,7 @@ private:
 	// Builds one frame's UI from the latest snapshot.
 	void RenderFrame();
 
-	// Background thread body: mirrors ui::App::ScanLoop but wakes the render
+	// Background thread body: mirrors tui::App::ScanLoop but wakes the render
 	// loop via glfwPostEmptyEvent() (thread-safe) instead of FTXUI's task
 	// queue.
 	void ScanLoop(std::stop_token stopToken);
@@ -60,7 +66,7 @@ private:
 
 	// Declared last so it is destroyed first: its destructor
 	// request_stop()+join()s before the shared state it touches is torn down
-	// (same invariant as ui::App).
+	// (same invariant as tui::App).
 	std::jthread _scanThread;
 };
 

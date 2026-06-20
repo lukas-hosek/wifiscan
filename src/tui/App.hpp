@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-namespace ui
+namespace tui
 {
 
 class App
@@ -63,4 +63,4 @@ private:
 	std::jthread _scanThread;
 };
 
-} // namespace ui
+} // namespace tui

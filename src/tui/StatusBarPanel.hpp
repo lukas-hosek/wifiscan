@@ -5,7 +5,7 @@
 #include "wifi/IScanner.hpp"
 #include <string>
 
-namespace ui
+namespace tui
 {
 
 class StatusBarPanel : public IPanel
@@ -28,4 +28,4 @@ private:
 	std::string _statusMsg;
 };
 
-} // namespace ui
+} // namespace tui
