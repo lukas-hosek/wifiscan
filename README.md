@@ -1,6 +1,6 @@
 # wifiscan
 
-A small Linux ImGui 7 terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
+A small Linux ImGui & terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
 
 <img width="1764" height="1219" alt="image" src="https://github.com/user-attachments/assets/05faf960-3998-4b66-a7bc-671e9d197365" />
 
