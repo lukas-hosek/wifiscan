@@ -124,9 +124,9 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 		if (active)
 		{
 			ImGui::PushStyleColor(ImGuiCol_Button,
-								  theme::Color(theme::UiColor::DataValue));
+								  theme::Color(theme::UiColor::Accent));
 			ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-								  theme::Color(theme::UiColor::DataValue));
+								  theme::Color(theme::UiColor::Accent));
 			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_BLACK);
 		}
 		if (ImGui::Button(kBandLabels[b]))
@@ -244,7 +244,7 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 		ImVec2 ts = ImGui::CalcTextSize(label.c_str());
 		float cx = origin.x + i * slotW + slotW * 0.5f;
 		ImU32 c = primaries.count(channel)
-					  ? theme::Color(theme::UiColor::DataValue)
+					  ? theme::Color(theme::UiColor::Accent)
 					  : theme::Color(theme::UiColor::Muted);
 		draw->AddText(ImVec2(cx - ts.x * 0.5f, baselineAbsY + 2.0f), c, label.c_str());
 	}

@@ -164,7 +164,7 @@ void RenderCell(ColumnType type, const wifi::Network& net)
 						   net._bssid.c_str());
 		break;
 	case ColumnType::Channel:
-		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::DataValue)), "%d",
+		ImGui::TextColored(ToVec(theme::Color(theme::UiColor::Accent)), "%d",
 						   net._channel);
 		break;
 	case ColumnType::Band:

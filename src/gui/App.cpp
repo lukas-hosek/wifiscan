@@ -97,6 +97,29 @@ void App::Run()
 	// Keyboard nav left disabled so the arrow keys stay free for panel scrolling.
 	ImGui::StyleColorsDark();
 
+	// Override ImGui chrome colors to match the dark-navy theme.
+	{
+		ImVec4* c = ImGui::GetStyle().Colors;
+		auto tv = [](theme::UiColor u)
+		{
+			return ImGui::ColorConvertU32ToFloat4(theme::Color(u));
+		};
+		c[ImGuiCol_WindowBg]          = tv(theme::UiColor::AppBackground);
+		c[ImGuiCol_ChildBg]           = tv(theme::UiColor::AppBackground);
+		c[ImGuiCol_TableHeaderBg]     = tv(theme::UiColor::Surface);
+		c[ImGuiCol_TableRowBg]        = tv(theme::UiColor::RowBg);
+		c[ImGuiCol_TableRowBgAlt]     = tv(theme::UiColor::SurfaceAlt);
+		c[ImGuiCol_TableBorderLight]  = tv(theme::UiColor::Border);
+		c[ImGuiCol_TableBorderStrong] = tv(theme::UiColor::BorderStrong);
+		c[ImGuiCol_Separator]         = tv(theme::UiColor::Border);
+		c[ImGuiCol_Button]            = tv(theme::UiColor::Surface);
+		c[ImGuiCol_ButtonHovered]     = tv(theme::UiColor::SurfaceHover);
+		c[ImGuiCol_ButtonActive]      = tv(theme::UiColor::SurfaceActive);
+		c[ImGuiCol_Header]            = tv(theme::UiColor::SelectionBg);
+		c[ImGuiCol_HeaderHovered]     = tv(theme::UiColor::SelectionBgHover);
+		c[ImGuiCol_HeaderActive]      = tv(theme::UiColor::SelectionBgActive);
+	}
+
 	// Apply the desktop scale to widget metrics and fonts. ImGui 1.92's dynamic
 	// font system rerasterizes the embedded font at the scaled size, so no TTF
 	// needs to be loaded. Panels read style.FontScaleDpi for their own pixel

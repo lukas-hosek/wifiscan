@@ -12,6 +12,8 @@ enum class UiColor
 {
 	AppBackground,
 	Border,
+	// interactive highlights: active band button, primary channel labels
+	Accent,
 	ColumnHeader,
 	DataValue,
 	StatusText,
@@ -23,6 +25,17 @@ enum class UiColor
 	SignalWeak,
 	Muted,
 	ShortcutHint,
+	// ImGui chrome: surfaces, borders, and selection states
+	Surface,
+	SurfaceHover,
+	SurfaceActive,
+	// transparent base table row (inherits window bg) and 2% white alt stripe
+	RowBg,
+	SurfaceAlt,
+	BorderStrong,
+	SelectionBg,
+	SelectionBgHover,
+	SelectionBgActive,
 };
 
 ImU32 Color(UiColor element);
