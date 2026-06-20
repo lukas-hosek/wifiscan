@@ -40,7 +40,7 @@ add_executable(wifiscan
 	src/utils/TextUtil.cpp
 	src/tui/SpectrumPanel.cpp
 	src/tui/NetworkTablePanel.cpp
-	src/tui/NonInteractiveOutput.cpp
+	src/non_interactive/App.cpp
 	src/tui/StatusBarPanel.cpp
 	src/tui/App.cpp
 )

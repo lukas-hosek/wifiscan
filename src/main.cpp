@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "tui/App.hpp"
-#include "tui/NonInteractiveOutput.hpp"
+#include "non_interactive/App.hpp"
 #include "wifi/NL80211Scanner.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -34,9 +34,11 @@ int main(int argc, char* argv[])
 										 : std::make_unique<wifi::NL80211Scanner>(ifaceName);
 
 		if (nonInteractive)
-			return ui::RunNonInteractive(*scanner);
-
-		if (gui)
+		{
+			non_interactive::App app(*scanner);
+			return app.Run();
+		}
+		else if (gui)
 		{
 #ifdef WIFISCAN_GUI
 			gui::App app(*scanner);
@@ -49,10 +51,12 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 #endif
 		}
-
-		ui::App app(*scanner);
-		app.Run();
-		return EXIT_SUCCESS;
+		else
+		{
+			ui::App app(*scanner);
+			app.Run();
+			return EXIT_SUCCESS;
+		}
 	}
 	catch (const wifi::ScanError& error)
 	{

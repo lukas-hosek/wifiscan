@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
-#include "NonInteractiveOutput.hpp"
+#include "App.hpp"
 #include "utils/TextUtil.hpp"
 #include "wifi/Network.hpp"
 #include <algorithm>
@@ -11,7 +11,7 @@
 #include <stop_token>
 #include <string>
 
-namespace ui
+namespace non_interactive
 {
 
 namespace
@@ -82,18 +82,20 @@ std::string FormatHeader()
 
 } // namespace
 
-int RunNonInteractive(wifi::IScanner& scanner)
+App::App(wifi::IScanner& scanner) : _scanner(scanner) {}
+
+int App::Run()
 {
 	// Default stop_source: never fires. TriggerScan blocks for its full
 	// timeout — fine here, there is no UI from which to cancel.
 	std::stop_source stopSource;
-	if (!scanner.TriggerScan(stopSource.get_token()))
+	if (!_scanner.TriggerScan(stopSource.get_token()))
 	{
-		std::fprintf(stderr, "Scan trigger failed: %s\n", scanner.GetLastError().c_str());
+		std::fprintf(stderr, "Scan trigger failed: %s\n", _scanner.GetLastError().c_str());
 		return EXIT_FAILURE;
 	}
 
-	auto networks = scanner.GetNetworks();
+	auto networks = _scanner.GetNetworks();
 
 	std::ranges::sort(networks,
 		[](const wifi::Network& a, const wifi::Network& b)
@@ -110,4 +112,4 @@ int RunNonInteractive(wifi::IScanner& scanner)
 	return EXIT_SUCCESS;
 }
 
-} // namespace ui
+} // namespace non_interactive
