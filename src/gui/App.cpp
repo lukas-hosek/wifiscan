@@ -14,7 +14,7 @@
 namespace gui
 {
 
-// Duplicated from ui/App.cpp (mirrored): formats a steady_clock time point as a
+// Duplicated from tui/App.cpp (mirrored): formats a steady_clock time point as a
 // local wall-clock HH:MM:SS string.
 static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 {

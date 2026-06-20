@@ -15,7 +15,7 @@ namespace gui
 namespace
 {
 
-// Mirrors ui::NetworkTablePanel::ColumnType (src/ui/NetworkTablePanel.cpp).
+// Mirrors ui::NetworkTablePanel::ColumnType (src/tui/NetworkTablePanel.cpp).
 enum class ColumnType
 {
 	SSID,

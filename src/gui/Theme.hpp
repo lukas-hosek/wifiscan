@@ -6,7 +6,7 @@
 namespace gui::theme
 {
 
-// Mirrors ui::theme::UiColor (src/ui/Theme.hpp) as RGB equivalents of the named
+// Mirrors ui::theme::UiColor (src/tui/Theme.hpp) as RGB equivalents of the named
 // FTXUI colors used by the terminal UI.
 enum class UiColor
 {

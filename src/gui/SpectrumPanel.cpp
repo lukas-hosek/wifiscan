@@ -21,7 +21,7 @@ namespace
 // this width, the plot child shows a horizontal scrollbar.
 constexpr float kMinSlotW = 26.0f;
 
-// --- Channel/coverage helpers: mirror ui/SpectrumPanel.cpp ---
+// --- Channel/coverage helpers: mirror tui/SpectrumPanel.cpp ---
 
 constexpr std::array<int, 14> kChannels24{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 constexpr std::array<int, 25> kChannels5{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132,

@@ -8,7 +8,7 @@ namespace gui
 {
 
 // Bottom status line: scan status message + interface + key hints.
-// Mirrors ui::StatusBarPanel (src/ui/StatusBarPanel.hpp).
+// Mirrors ui::StatusBarPanel (src/tui/StatusBarPanel.hpp).
 class StatusBarPanel
 {
 public:

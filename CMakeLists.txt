@@ -36,13 +36,13 @@ add_executable(wifiscan
 	src/main.cpp
 	src/wifi/Network.cpp
 	src/wifi/NL80211Scanner.cpp
-	src/ui/Theme.cpp
+	src/tui/Theme.cpp
 	src/utils/TextUtil.cpp
-	src/ui/SpectrumPanel.cpp
-	src/ui/NetworkTablePanel.cpp
-	src/ui/NonInteractiveOutput.cpp
-	src/ui/StatusBarPanel.cpp
-	src/ui/App.cpp
+	src/tui/SpectrumPanel.cpp
+	src/tui/NetworkTablePanel.cpp
+	src/tui/NonInteractiveOutput.cpp
+	src/tui/StatusBarPanel.cpp
+	src/tui/App.cpp
 )
 
 target_include_directories(wifiscan PRIVATE ${CMAKE_SOURCE_DIR}/src)
