@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "SpectrumPanel.hpp"
+#include "ImGuiExtras.hpp"
 #include "Theme.hpp"
 #include <algorithm>
 #include <array>
@@ -22,19 +23,14 @@ constexpr float kMinSlotW = 26.0f;
 
 // --- Channel/coverage helpers: mirror ui/SpectrumPanel.cpp ---
 
-constexpr std::array<int, 14> kChannels24{
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
-constexpr std::array<int, 25> kChannels5{36, 40, 44, 48, 52, 56, 60, 64, 100,
-	104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161,
-	165};
-constexpr std::array<int, 59> kChannels6{1, 5, 9, 13, 17, 21, 25, 29, 33, 37,
-	41, 45, 49, 53, 57, 61, 65, 69, 73, 77, 81, 85, 89, 93, 97, 101, 105, 109,
-	113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169,
-	173, 177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229,
-	233};
+constexpr std::array<int, 14> kChannels24{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+constexpr std::array<int, 25> kChannels5{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132,
+	136, 140, 144, 149, 153, 157, 161, 165};
+constexpr std::array<int, 59> kChannels6{1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77,
+	81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173,
+	177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233};
 
-constexpr std::array<wifi::Band, 3> kBands{
-	wifi::Band::GHz2_4, wifi::Band::GHz5, wifi::Band::GHz6};
+constexpr std::array<wifi::Band, 3> kBands{wifi::Band::GHz2_4, wifi::Band::GHz5, wifi::Band::GHz6};
 constexpr std::array<const char*, 3> kBandLabels{"2.4 GHz", "5 GHz", "6 GHz"};
 
 std::span<const int> BandChannels(int bandIndex)
@@ -87,8 +83,7 @@ std::vector<int> CoveredChannels(const wifi::Network& net)
 	case 160:
 		return build({-14, -10, -6, -2, +2, +6, +10, +14});
 	case 320:
-		return build({-30, -26, -22, -18, -14, -10, -6, -2, +2, +6, +10, +14,
-			+18, +22, +26, +30});
+		return build({-30, -26, -22, -18, -14, -10, -6, -2, +2, +6, +10, +14, +18, +22, +26, +30});
 	default:
 		return {primary};
 	}
@@ -118,40 +113,21 @@ void SpectrumPanel::RenderBandSelector()
 			_activeBandIndex = (_activeBandIndex + 1) % bandCount;
 	}
 
-	// Band selector buttons. _activeBandIndex is the single source of truth, so
-	// the keyboard and mouse never fight over an internal tab-bar selection.
-	for (int b = 0; b < bandCount; ++b)
-	{
-		if (b > 0)
-			ImGui::SameLine();
-		bool active = b == _activeBandIndex;
-		if (active)
-		{
-			ImGui::PushStyleColor(
-				ImGuiCol_Button, theme::Color(theme::UiColor::Accent));
-			ImGui::PushStyleColor(
-				ImGuiCol_ButtonHovered, theme::Color(theme::UiColor::Accent));
-			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32_BLACK);
-		}
-		if (ImGui::Button(kBandLabels[b]))
-			_activeBandIndex = b;
-		if (active)
-			ImGui::PopStyleColor(3);
-	}
+	// Segmented "pill" selector. _activeBandIndex is the single source of truth, so the
+	// keyboard and the widget never fight over an internal selection.
+	SegmentedControl("##bandSelector", std::span<const char* const>{kBandLabels}, _activeBandIndex);
 }
 
-void SpectrumPanel::RenderYAxis(float leftMarginW, float availH,
-	float topMargin, float barAreaH, float scale) const
+void SpectrumPanel::RenderYAxis(float leftMarginW, float availH, float topMargin, float barAreaH, float scale) const
 {
-	ImGui::BeginChild("yAxis", ImVec2(leftMarginW, availH), false,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	ImGui::BeginChild(
+		"yAxis", ImVec2(leftMarginW, availH), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
 	ImVec2 lp = ImGui::GetWindowPos();
 	ImDrawList* ld = ImGui::GetWindowDrawList();
 	float baselineAbsY = lp.y + topMargin + barAreaH;
 
-	ld->AddLine(ImVec2(lp.x + leftMarginW - 1.0f, lp.y),
-		ImVec2(lp.x + leftMarginW - 1.0f, baselineAbsY),
+	ld->AddLine(ImVec2(lp.x + leftMarginW - 1.0f, lp.y), ImVec2(lp.x + leftMarginW - 1.0f, baselineAbsY),
 		theme::Color(theme::UiColor::Border), 1.0f);
 
 	for (int dbm = 0; dbm >= -100; dbm -= 20)
@@ -160,8 +136,7 @@ void SpectrumPanel::RenderYAxis(float leftMarginW, float availH,
 		float y = baselineAbsY - fraction * barAreaH;
 		std::string label = std::to_string(dbm);
 		ImVec2 ts = ImGui::CalcTextSize(label.c_str());
-		ld->AddText(
-			ImVec2(lp.x + leftMarginW - ts.x - 4.0f * scale, y - ts.y * 0.5f),
+		ld->AddText(ImVec2(lp.x + leftMarginW - ts.x - 4.0f * scale, y - ts.y * 0.5f),
 			theme::Color(theme::UiColor::Muted), label.c_str());
 	}
 
@@ -169,26 +144,22 @@ void SpectrumPanel::RenderYAxis(float leftMarginW, float availH,
 	ImGui::EndChild();
 }
 
-void SpectrumPanel::DrawGrid(ImDrawList* draw, ImVec2 origin, float plotW,
-	float baselineAbsY, float barAreaH) const
+void SpectrumPanel::DrawGrid(ImDrawList* draw, ImVec2 origin, float plotW, float baselineAbsY, float barAreaH) const
 {
 	constexpr ImU32 kGridColor = IM_COL32(60, 60, 60, 200);
 	for (int dbm = 0; dbm >= -100; dbm -= 20)
 	{
 		float fraction = (dbm + 100) / 100.0f;
 		float y = baselineAbsY - fraction * barAreaH;
-		draw->AddLine(
-			ImVec2(origin.x, y), ImVec2(origin.x + plotW, y), kGridColor, 1.0f);
+		draw->AddLine(ImVec2(origin.x, y), ImVec2(origin.x + plotW, y), kGridColor, 1.0f);
 	}
 }
 
-void SpectrumPanel::DrawChannelTicks(ImDrawList* draw,
-	std::span<const int> channels, float slotW, ImVec2 origin,
+void SpectrumPanel::DrawChannelTicks(ImDrawList* draw, std::span<const int> channels, float slotW, ImVec2 origin,
 	float baselineAbsY, const std::unordered_set<int>& primaries) const
 {
 	int channelCount = static_cast<int>(channels.size());
-	draw->AddLine(ImVec2(origin.x, baselineAbsY),
-		ImVec2(origin.x + slotW * channelCount, baselineAbsY),
+	draw->AddLine(ImVec2(origin.x, baselineAbsY), ImVec2(origin.x + slotW * channelCount, baselineAbsY),
 		theme::Color(theme::UiColor::Border), 1.0f);
 	for (int i = 0; i < channelCount; ++i)
 	{
@@ -196,18 +167,13 @@ void SpectrumPanel::DrawChannelTicks(ImDrawList* draw,
 		std::string label = std::to_string(channel);
 		ImVec2 ts = ImGui::CalcTextSize(label.c_str());
 		float cx = origin.x + i * slotW + slotW * 0.5f;
-		ImU32 c = primaries.count(channel)
-			? theme::Color(theme::UiColor::Accent)
-			: theme::Color(theme::UiColor::Muted);
-		draw->AddText(
-			ImVec2(cx - ts.x * 0.5f, baselineAbsY + 2.0f), c, label.c_str());
+		ImU32 c = primaries.count(channel) ? theme::Color(theme::UiColor::Accent) : theme::Color(theme::UiColor::Muted);
+		draw->AddText(ImVec2(cx - ts.x * 0.5f, baselineAbsY + 2.0f), c, label.c_str());
 	}
 }
 
-void SpectrumPanel::DrawNetworkBars(ImDrawList* draw,
-	const std::vector<wifi::Network>& networks, wifi::Band band,
-	std::span<const int> channels, float slotW, ImVec2 origin, float barAreaH,
-	float baselineAbsY, float lineH) const
+void SpectrumPanel::DrawNetworkBars(ImDrawList* draw, const std::vector<wifi::Network>& networks, wifi::Band band,
+	std::span<const int> channels, float slotW, ImVec2 origin, float barAreaH, float baselineAbsY, float lineH) const
 {
 	int channelCount = static_cast<int>(channels.size());
 	for (const wifi::Network& net : networks)
@@ -235,8 +201,7 @@ void SpectrumPanel::DrawNetworkBars(ImDrawList* draw,
 		float barTop = baselineAbsY - barH;
 		ImU32 color = theme::SignalColor(net._signalDbm);
 
-		draw->AddRect(ImVec2(xLeft, barTop), ImVec2(xRight, baselineAbsY),
-			color, 0.0f, 0, 2.0f);
+		draw->AddRect(ImVec2(xLeft, barTop), ImVec2(xRight, baselineAbsY), color, 0.0f, 0, 2.0f);
 
 		std::string ssid = net._ssid.empty() ? "???" : net._ssid;
 		ImVec2 ts = ImGui::CalcTextSize(ssid.c_str());
@@ -272,8 +237,7 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 
 	// --- Right child: scrollable spectrum ---
 	if (!ImGui::BeginChild("spectrumPlot", ImVec2(0.0f, availH), false,
-			ImGuiWindowFlags_HorizontalScrollbar |
-				ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+			ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		ImGui::EndChild();
 		return;
@@ -302,8 +266,7 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 			primaries.insert(net._channel);
 
 	DrawChannelTicks(draw, channels, slotW, origin, baselineAbsY, primaries);
-	DrawNetworkBars(draw, networks, band, channels, slotW, origin, barAreaH,
-		baselineAbsY, lineH);
+	DrawNetworkBars(draw, networks, band, channels, slotW, origin, barAreaH, baselineAbsY, lineH);
 
 	// Reserve the content extent so the child's scrollbars/ranges are correct.
 	// Use avail.y (inner content height) rather than availH so the dummy never

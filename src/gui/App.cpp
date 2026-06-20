@@ -18,18 +18,14 @@ namespace gui
 // local wall-clock HH:MM:SS string.
 static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 {
-	auto wallTime = std::chrono::system_clock::now() +
-		(timePoint - std::chrono::steady_clock::now());
+	auto wallTime = std::chrono::system_clock::now() + (timePoint - std::chrono::steady_clock::now());
 	auto timet = std::chrono::system_clock::to_time_t(wallTime);
 	struct tm localTime{};
 	localtime_r(&timet, &localTime);
-	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour,
-		localTime.tm_min, localTime.tm_sec);
+	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour, localTime.tm_min, localTime.tm_sec);
 }
 
-App::App(wifi::IScanner& scanner) : _scanner(scanner), _statusBarPanel(scanner)
-{
-}
+App::App(wifi::IScanner& scanner) : _scanner(scanner), _statusBarPanel(scanner) {}
 
 void App::ScanLoop(std::stop_token stopToken)
 {
@@ -70,13 +66,12 @@ void App::Run()
 	// Desktop content scale. On X11 this is derived from Xft.dpi, which the
 	// Cinnamon/Mint display-scaling setting drives, so the window and all UI
 	// scale up on HiDPI displays instead of rendering tiny.
-	float dpiScale =
-		ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
+	float dpiScale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
 	if (dpiScale <= 0.0f)
 		dpiScale = 1.0f;
 
-	_window = glfwCreateWindow(static_cast<int>(1100 * dpiScale),
-		static_cast<int>(720 * dpiScale), "wifiscan", nullptr, nullptr);
+	_window = glfwCreateWindow(
+		static_cast<int>(1100 * dpiScale), static_cast<int>(720 * dpiScale), "wifiscan", nullptr, nullptr);
 	if (_window == nullptr)
 	{
 		fprintf(stderr,
@@ -99,7 +94,9 @@ void App::Run()
 	{
 		ImVec4* c = ImGui::GetStyle().Colors;
 		auto tv = [](theme::UiColor u)
-		{ return ImGui::ColorConvertU32ToFloat4(theme::Color(u)); };
+		{
+			return ImGui::ColorConvertU32ToFloat4(theme::Color(u));
+		};
 		c[ImGuiCol_WindowBg] = tv(theme::UiColor::AppBackground);
 		c[ImGuiCol_ChildBg] = tv(theme::UiColor::AppBackground);
 		c[ImGuiCol_TableHeaderBg] = tv(theme::UiColor::Surface);
@@ -128,10 +125,12 @@ void App::Run()
 	ImGui_ImplOpenGL3_Init("#version 130");
 
 	_scanThread = std::jthread(
-		[this](std::stop_token stopToken) { ScanLoop(stopToken); });
+		[this](std::stop_token stopToken)
+		{
+			ScanLoop(stopToken);
+		});
 
-	ImVec4 clear = ImGui::ColorConvertU32ToFloat4(
-		theme::Color(theme::UiColor::AppBackground));
+	ImVec4 clear = ImGui::ColorConvertU32ToFloat4(theme::Color(theme::UiColor::AppBackground));
 
 	while (!glfwWindowShouldClose(_window) && !_quit)
 	{
@@ -187,9 +186,8 @@ void App::RenderFrame()
 	ImGui::SetNextWindowPos(viewport->WorkPos);
 	ImGui::SetNextWindowSize(viewport->WorkSize);
 
-	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus |
+	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoNavFocus;
 
 	if (ImGui::Begin("##wifiscan", nullptr, kFlags))

@@ -51,26 +51,19 @@ uint32_t Utf8Decode(std::string_view str, size_t& pos)
 // True if the code point occupies two terminal columns (CJK, emoji, etc.).
 bool IsWide(uint32_t cp)
 {
-	return (cp >= 0x1100 && cp <= 0x115F) || (cp == 0x2329 || cp == 0x232A) ||
-		   (cp >= 0x2E80 && cp <= 0x303E) || (cp >= 0x3040 && cp <= 0x33FF) ||
-		   (cp >= 0x3400 && cp <= 0x4DBF) || (cp >= 0x4E00 && cp <= 0xA4CF) ||
-		   (cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0xF900 && cp <= 0xFAFF) ||
-		   (cp >= 0xFE10 && cp <= 0xFE19) || (cp >= 0xFE30 && cp <= 0xFE4F) ||
-		   (cp >= 0xFF00 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6) ||
-		   (cp >= 0x1F300 && cp <= 0x1F9FF) ||
-		   (cp >= 0x20000 && cp <= 0x2FFFD) || (cp >= 0x30000 && cp <= 0x3FFFD);
+	return (cp >= 0x1100 && cp <= 0x115F) || (cp == 0x2329 || cp == 0x232A) || (cp >= 0x2E80 && cp <= 0x303E) ||
+		(cp >= 0x3040 && cp <= 0x33FF) || (cp >= 0x3400 && cp <= 0x4DBF) || (cp >= 0x4E00 && cp <= 0xA4CF) ||
+		(cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFE10 && cp <= 0xFE19) ||
+		(cp >= 0xFE30 && cp <= 0xFE4F) || (cp >= 0xFF00 && cp <= 0xFF60) || (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+		(cp >= 0x1F300 && cp <= 0x1F9FF) || (cp >= 0x20000 && cp <= 0x2FFFD) || (cp >= 0x30000 && cp <= 0x3FFFD);
 }
 
-bool IsTerminalControl(uint32_t cp)
-{
-	return cp == 0 || (cp < 32 && cp != '\t') || (cp >= 0x7F && cp < 0xA0);
-}
+bool IsTerminalControl(uint32_t cp) { return cp == 0 || (cp < 32 && cp != '\t') || (cp >= 0x7F && cp < 0xA0); }
 
 bool IsDisplayFormatting(uint32_t cp)
 {
-	return cp == 0x00AD || cp == 0x200B || cp == 0x200C || cp == 0x200D ||
-		   cp == 0x200E || cp == 0x200F || (cp >= 0x202A && cp <= 0x202E) ||
-		   (cp >= 0x2060 && cp <= 0x2069) || cp == 0xFEFF;
+	return cp == 0x00AD || cp == 0x200B || cp == 0x200C || cp == 0x200D || cp == 0x200E || cp == 0x200F ||
+		(cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2060 && cp <= 0x2069) || cp == 0xFEFF;
 }
 
 // Total terminal column width of a UTF-8 string.
@@ -149,8 +142,7 @@ std::string CenterText(const std::string& str, int width)
 		return Utf8TruncateToCols(str, width);
 	int leftPad = (width - len) / 2;
 	int rightPad = width - len - leftPad;
-	return std::string(static_cast<size_t>(leftPad), ' ') + str +
-		   std::string(static_cast<size_t>(rightPad), ' ');
+	return std::string(static_cast<size_t>(leftPad), ' ') + str + std::string(static_cast<size_t>(rightPad), ' ');
 }
 
 } // namespace utils

@@ -52,16 +52,11 @@ std::string FormatRow(const wifi::Network& net)
 	cells[1] = utils::PadRight(net._bssid, 17);
 	cells[2] = utils::PadRight(std::to_string(net._channel), 4);
 	cells[3] = utils::PadRight(wifi::BandLabel(net._band), 4);
-	cells[4] = utils::PadRight(
-		net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-", 3
-	);
+	cells[4] = utils::PadRight(net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-", 3);
 	cells[5] = utils::PadRight(wifi::StandardLabel(net._standard), 3);
 	cells[6] = utils::PadRight(wifi::SecurityLabel(net._security), 7);
-	cells[7] = utils::PadRight(
-		net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-", 7
-	);
-	cells[8] =
-		utils::PadRight(std::to_string(net._signalDbm) + " dBm", 8);
+	cells[7] = utils::PadRight(net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-", 7);
+	cells[8] = utils::PadRight(std::to_string(net._signalDbm) + " dBm", 8);
 
 	std::string row;
 	for (size_t i = 0; i < cells.size(); ++i)
@@ -94,22 +89,19 @@ int RunNonInteractive(wifi::IScanner& scanner)
 	std::stop_source stopSource;
 	if (!scanner.TriggerScan(stopSource.get_token()))
 	{
-		std::fprintf(stderr, "Scan trigger failed: %s\n",
-					 scanner.GetLastError().c_str());
+		std::fprintf(stderr, "Scan trigger failed: %s\n", scanner.GetLastError().c_str());
 		return EXIT_FAILURE;
 	}
 
 	auto networks = scanner.GetNetworks();
 
-	std::ranges::sort(
-		networks,
+	std::ranges::sort(networks,
 		[](const wifi::Network& a, const wifi::Network& b)
 		{
 			if (a._signalDbm != b._signalDbm)
 				return a._signalDbm > b._signalDbm;
 			return a._ssid < b._ssid;
-		}
-	);
+		});
 
 	std::puts(FormatHeader().c_str());
 	for (const auto& net : networks)

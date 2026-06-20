@@ -75,6 +75,7 @@ if(WIFISCAN_ENABLE_GUI)
 
 	target_sources(wifiscan PRIVATE
 		src/gui/Theme.cpp
+		src/gui/ImGuiExtras.cpp
 		src/gui/StatusBarPanel.cpp
 		src/gui/NetworkTablePanel.cpp
 		src/gui/SpectrumPanel.cpp

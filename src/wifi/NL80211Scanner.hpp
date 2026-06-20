@@ -34,14 +34,8 @@ public:
 
 	[[nodiscard]] std::vector<Network> GetNetworks() override;
 	bool TriggerScan(std::stop_token stopToken) override;
-	[[nodiscard]] const std::string& GetInterface() const noexcept override
-	{
-		return _iface;
-	}
-	[[nodiscard]] const std::string& GetLastError() const noexcept override
-	{
-		return _lastError;
-	}
+	[[nodiscard]] const std::string& GetInterface() const noexcept override { return _iface; }
+	[[nodiscard]] const std::string& GetLastError() const noexcept override { return _lastError; }
 
 private:
 	void InitNl();
@@ -65,11 +59,9 @@ private:
 	// instance method above.
 	static int NlBssMessageCallback(nl_msg* message, void* scannerInstance);
 	static int NlDumpFinishedCallback(nl_msg* message, void* scannerInstance);
-	static int NlErrorCallback(sockaddr_nl* sourceAddress, nlmsgerr* error,
-							   void* scannerInstance);
+	static int NlErrorCallback(sockaddr_nl* sourceAddress, nlmsgerr* error, void* scannerInstance);
 	static int NlTriggerAckCallback(nl_msg* message, void* scannerInstance);
-	static int NlTriggerErrorCallback(sockaddr_nl* sourceAddress,
-									  nlmsgerr* error, void* scannerInstance);
+	static int NlTriggerErrorCallback(sockaddr_nl* sourceAddress, nlmsgerr* error, void* scannerInstance);
 	static int NlScanEventCallback(nl_msg* message, void* scannerInstance);
 
 	// Wireless interface name (e.g. "wlp3s0")

@@ -14,15 +14,11 @@ namespace ui
 
 static std::string FormatTime(std::chrono::steady_clock::time_point timePoint)
 {
-	auto wallTime = std::chrono::system_clock::now() +
-		(timePoint - std::chrono::steady_clock::now());
+	auto wallTime = std::chrono::system_clock::now() + (timePoint - std::chrono::steady_clock::now());
 	auto timet = std::chrono::system_clock::to_time_t(wallTime);
 	struct tm localTime{};
 	localtime_r(&timet, &localTime);
-	return fmt::format(
-		"{:02d}:{:02d}:{:02d}", localTime.tm_hour, localTime.tm_min,
-		localTime.tm_sec
-	);
+	return fmt::format("{:02d}:{:02d}:{:02d}", localTime.tm_hour, localTime.tm_min, localTime.tm_sec);
 }
 
 App::App(wifi::IScanner& scanner) : _scanner(scanner)
@@ -31,8 +27,11 @@ App::App(wifi::IScanner& scanner) : _scanner(scanner)
 	_networkTablePanel = std::make_unique<NetworkTablePanel>();
 	_statusBarPanel = std::make_unique<StatusBarPanel>(_scanner);
 
-	_scanThread = std::jthread([this](std::stop_token stopToken)
-							   { ScanLoop(stopToken); });
+	_scanThread = std::jthread(
+		[this](std::stop_token stopToken)
+		{
+			ScanLoop(stopToken);
+		});
 }
 
 void App::ScanLoop(std::stop_token stopToken)
@@ -63,14 +62,16 @@ void App::ScanLoop(std::stop_token stopToken)
 
 void App::Run()
 {
-	auto component = ftxui::Renderer([this] { return Render(); });
+	auto component = ftxui::Renderer(
+		[this]
+		{
+			return Render();
+		});
 
-	component = ftxui::CatchEvent(
-		component,
+	component = ftxui::CatchEvent(component,
 		[&](ftxui::Event event)
 		{
-			if (event == ftxui::Event::Character('q') ||
-				event == ftxui::Event::Character('Q'))
+			if (event == ftxui::Event::Character('q') || event == ftxui::Event::Character('Q'))
 			{
 				_screen.ExitLoopClosure()();
 				return true;
@@ -80,8 +81,7 @@ void App::Run()
 			if (_networkTablePanel->HandleEvent(event))
 				return true;
 			return false;
-		}
-	);
+		});
 
 	// While Loop() is running, FTXUI owns the alternate screen buffer — any
 	// std::print / printf / std::cout from any thread will corrupt the
@@ -103,8 +103,7 @@ ftxui::Element App::Render()
 
 	auto sep = [&]
 	{
-		return ftxui::separator() |
-			ftxui::color(theme::Color(theme::UiColor::Border));
+		return ftxui::separator() | ftxui::color(theme::Color(theme::UiColor::Border));
 	};
 
 	// Fixed rows: 1 separator + status bar = 2 lines

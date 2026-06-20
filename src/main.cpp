@@ -30,9 +30,8 @@ int main(int argc, char* argv[])
 				ifaceName = std::string(arg);
 		}
 
-		auto scanner = ifaceName.empty()
-						   ? std::make_unique<wifi::NL80211Scanner>()
-						   : std::make_unique<wifi::NL80211Scanner>(ifaceName);
+		auto scanner = ifaceName.empty() ? std::make_unique<wifi::NL80211Scanner>()
+										 : std::make_unique<wifi::NL80211Scanner>(ifaceName);
 
 		if (nonInteractive)
 			return ui::RunNonInteractive(*scanner);
@@ -45,8 +44,8 @@ int main(int argc, char* argv[])
 			return EXIT_SUCCESS;
 #else
 			fprintf(stderr,
-					"--gui not built; reconfigure with "
-					"-DWIFISCAN_ENABLE_GUI=ON\n");
+				"--gui not built; reconfigure with "
+				"-DWIFISCAN_ENABLE_GUI=ON\n");
 			return EXIT_FAILURE;
 #endif
 		}

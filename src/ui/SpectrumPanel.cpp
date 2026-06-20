@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "SpectrumPanel.hpp"
-#include "utils/TextUtil.hpp"
 #include "Theme.hpp"
+#include "utils/TextUtil.hpp"
 #include <algorithm>
 #include <array>
 #include <ftxui/component/event.hpp>
@@ -27,19 +27,14 @@ constexpr int kMaxLabels = 5;
 // Rows consumed by SSID labels + channel number inside each column
 constexpr int kColumnOverhead = kMaxLabels + 1;
 
-constexpr std::array<int, 14> kChannels24{1, 2, 3,	4,	5,	6,	7,
-										  8, 9, 10, 11, 12, 13, 14};
-constexpr std::array<int, 25> kChannels5{
-	36,	 40,  44,  48,	52,	 56,  60,  64,	100, 104, 108, 112, 116,
-	120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165};
-constexpr std::array<int, 59> kChannels6{
-	1,	 5,	  9,   13,	17,	 21,  25,  29,	33,	 37,  41,  45,	49,	 53,  57,
-	61,	 65,  69,  73,	77,	 81,  85,  89,	93,	 97,  101, 105, 109, 113, 117,
-	121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177,
-	181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233};
+constexpr std::array<int, 14> kChannels24{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+constexpr std::array<int, 25> kChannels5{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132,
+	136, 140, 144, 149, 153, 157, 161, 165};
+constexpr std::array<int, 59> kChannels6{1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77,
+	81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173,
+	177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233};
 
-constexpr std::array<wifi::Band, 3> kBands{wifi::Band::GHz2_4, wifi::Band::GHz5,
-										   wifi::Band::GHz6};
+constexpr std::array<wifi::Band, 3> kBands{wifi::Band::GHz2_4, wifi::Band::GHz5, wifi::Band::GHz6};
 constexpr std::array<const char*, 3> kBandLabels{"2.4 GHz", "5 GHz", "6 GHz"};
 
 std::span<const int> BandChannels(int bandIndex)
@@ -94,8 +89,7 @@ std::vector<int> CoveredChannels(const wifi::Network& net)
 	case 160:
 		return build({-14, -10, -6, -2, +2, +6, +10, +14});
 	case 320:
-		return build({-30, -26, -22, -18, -14, -10, -6, -2, +2, +6, +10, +14,
-					  +18, +22, +26, +30});
+		return build({-30, -26, -22, -18, -14, -10, -6, -2, +2, +6, +10, +14, +18, +22, +26, +30});
 	default:
 		return {primary};
 	}
@@ -113,8 +107,7 @@ struct ChannelOccupancy
 // Buckets the visible networks per channel for a single band. Each network is
 // recorded once on its primary channel (for label placement) and once on every
 // channel its operating bandwidth spans (for bar height/colour).
-std::map<int, ChannelOccupancy>
-GroupByChannel(const std::vector<wifi::Network>& networks, wifi::Band band)
+std::map<int, ChannelOccupancy> GroupByChannel(const std::vector<wifi::Network>& networks, wifi::Band band)
 {
 	std::map<int, ChannelOccupancy> byChannel;
 	for (const auto& net : networks)
@@ -131,19 +124,22 @@ GroupByChannel(const std::vector<wifi::Network>& networks, wifi::Band band)
 	for (auto& [ch, occ] : byChannel)
 	{
 		std::sort(occ.coveringNets.begin(), occ.coveringNets.end(),
-				  [](const wifi::Network* a, const wifi::Network* b)
-				  { return a->_signalDbm > b->_signalDbm; });
+			[](const wifi::Network* a, const wifi::Network* b)
+			{
+				return a->_signalDbm > b->_signalDbm;
+			});
 		std::sort(occ.primaryNets.begin(), occ.primaryNets.end(),
-				  [](const wifi::Network* a, const wifi::Network* b)
-				  { return a->_signalDbm > b->_signalDbm; });
+			[](const wifi::Network* a, const wifi::Network* b)
+			{
+				return a->_signalDbm > b->_signalDbm;
+			});
 	}
 	return byChannel;
 }
 
 // Top-of-column SSID label stack, sorted strongest → weakest, padded to
 // kMaxLabels rows.
-ftxui::Element
-BuildLabelsBlock(const std::vector<const wifi::Network*>& sortedNets)
+ftxui::Element BuildLabelsBlock(const std::vector<const wifi::Network*>& sortedNets)
 {
 	using namespace ftxui;
 
@@ -158,8 +154,7 @@ BuildLabelsBlock(const std::vector<const wifi::Network*>& sortedNets)
 			label = "???";
 		if (label.size() > static_cast<size_t>(kColWidth))
 			label.resize(kColWidth);
-		rows.push_back(text(label) |
-					   color(theme::SignalColor(net->_signalDbm)) | hcenter);
+		rows.push_back(text(label) | color(theme::SignalColor(net->_signalDbm)) | hcenter);
 		++shown;
 	}
 	for (; shown < kMaxLabels; ++shown)
@@ -175,8 +170,7 @@ ftxui::Element BuildBarBlock(int barEighths, int topSignalDbm, int maxBarHeight)
 	using namespace ftxui;
 
 	// U+2581..U+2588 — ▁ ▂ ▃ ▄ ▅ ▆ ▇ █, growing from the cell bottom upward.
-	static const std::array<std::string_view, 8> kLowerBlocks{
-		"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
+	static const std::array<std::string_view, 8> kLowerBlocks{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
 	static constexpr std::string_view kFull{"█"};
 
 	int fullRows = barEighths / 8;
@@ -198,8 +192,7 @@ ftxui::Element BuildBarBlock(int barEighths, int topSignalDbm, int maxBarHeight)
 	for (int i = 0; i < maxBarHeight - fullRows - capRows; i++)
 		rows.push_back(text(std::string(kBarWidth, ' ')));
 	if (capRows > 0)
-		rows.push_back(text(repeat(kLowerBlocks[remainder - 1], kBarWidth)) |
-					   barColor | hcenter);
+		rows.push_back(text(repeat(kLowerBlocks[remainder - 1], kBarWidth)) | barColor | hcenter);
 	for (int i = 0; i < fullRows; i++)
 		rows.push_back(text(repeat(kFull, kBarWidth)) | barColor | hcenter);
 	return vbox(rows);
@@ -211,10 +204,8 @@ ftxui::Element BuildChannelLabel(int channel, bool hasNetworks)
 {
 	using namespace ftxui;
 	if (hasNetworks)
-		return text(std::to_string(channel)) |
-			   color(theme::Color(theme::UiColor::DataValue)) | hcenter;
-	return text(std::to_string(channel)) |
-		   color(theme::Color(theme::UiColor::Muted)) | dim | hcenter;
+		return text(std::to_string(channel)) | color(theme::Color(theme::UiColor::DataValue)) | hcenter;
+	return text(std::to_string(channel)) | color(theme::Color(theme::UiColor::Muted)) | dim | hcenter;
 }
 
 // Empty label stack — used when a channel is only covered by another AP's
@@ -229,8 +220,7 @@ ftxui::Element BuildEmptyLabelsBlock()
 	return vbox(rows);
 }
 
-ftxui::Element BuildPopulatedColumn(int channel, const ChannelOccupancy& occ,
-									int maxBarHeight)
+ftxui::Element BuildPopulatedColumn(int channel, const ChannelOccupancy& occ, int maxBarHeight)
 {
 	using namespace ftxui;
 
@@ -238,16 +228,14 @@ ftxui::Element BuildPopulatedColumn(int channel, const ChannelOccupancy& occ,
 	int barEighths = std::max(1, bar->SignalQuality() * maxBarHeight * 8 / 100);
 	int topSignal = bar->_signalDbm;
 
-	Element labels = occ.primaryNets.empty()
-						 ? BuildEmptyLabelsBlock()
-						 : BuildLabelsBlock(occ.primaryNets);
+	Element labels = occ.primaryNets.empty() ? BuildEmptyLabelsBlock() : BuildLabelsBlock(occ.primaryNets);
 
 	return vbox({
 			   labels,
 			   BuildBarBlock(barEighths, topSignal, maxBarHeight),
 			   BuildChannelLabel(channel, true),
 		   }) |
-		   hcenter;
+		hcenter;
 }
 
 ftxui::Element BuildEmptyColumn(int channel, int maxBarHeight)
@@ -263,9 +251,8 @@ ftxui::Element BuildEmptyColumn(int channel, int maxBarHeight)
 	return vbox(rows) | hcenter;
 }
 
-ftxui::Element RenderBand(const std::vector<wifi::Network>& networks,
-						  std::span<const int> channels, wifi::Band band,
-						  const std::string& label, int maxBarHeight)
+ftxui::Element RenderBand(const std::vector<wifi::Network>& networks, std::span<const int> channels, wifi::Band band,
+	const std::string& label, int maxBarHeight)
 {
 	using namespace ftxui;
 
@@ -276,26 +263,21 @@ ftxui::Element RenderBand(const std::vector<wifi::Network>& networks,
 	{
 		auto it = byChannel.find(channel);
 		if (it != byChannel.end() && !it->second.coveringNets.empty())
-			columns.push_back(
-				BuildPopulatedColumn(channel, it->second, maxBarHeight));
+			columns.push_back(BuildPopulatedColumn(channel, it->second, maxBarHeight));
 		else
 			columns.push_back(BuildEmptyColumn(channel, maxBarHeight));
-		columns.push_back(separator() |
-						  color(theme::Color(theme::UiColor::Muted)) | dim);
+		columns.push_back(separator() | color(theme::Color(theme::UiColor::Muted)) | dim);
 	}
 	if (!columns.empty())
 		columns.pop_back();
 
-	return window(text(" " + label + " ") |
-					  color(theme::Color(theme::UiColor::Border)) | bold,
-				  hbox(columns)) |
-		   color(theme::Color(theme::UiColor::Border));
+	return window(text(" " + label + " ") | color(theme::Color(theme::UiColor::Border)) | bold, hbox(columns)) |
+		color(theme::Color(theme::UiColor::Border));
 }
 
 } // namespace
 
-ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
-									 int allocatedHeight)
+ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks, int allocatedHeight)
 {
 	// Subtract window border (2 rows) to get the drawable interior height,
 	// then split into label rows (kColumnOverhead) and bar rows.
@@ -322,8 +304,7 @@ ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
 	int termWidth = ftxui::Terminal::Size().dimx;
 	int visibleCount = std::max(1, (termWidth - 1) / (kColWidth + 1));
 
-	_scrollOffset =
-		std::clamp(_scrollOffset, 0, std::max(0, totalChannels - visibleCount));
+	_scrollOffset = std::clamp(_scrollOffset, 0, std::max(0, totalChannels - visibleCount));
 	int visibleEnd = std::min(_scrollOffset + visibleCount, totalChannels);
 
 	bool canScrollLeft = _scrollOffset > 0;
@@ -337,10 +318,8 @@ ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
 	if (_hideConnected)
 		bandLabel += " (connected hidden)";
 
-	return RenderBand(
-		*visible,
-		allChannels.subspan(static_cast<size_t>(_scrollOffset),
-							static_cast<size_t>(visibleEnd - _scrollOffset)),
+	return RenderBand(*visible,
+		allChannels.subspan(static_cast<size_t>(_scrollOffset), static_cast<size_t>(visibleEnd - _scrollOffset)),
 		kBands[_activeBandIndex], bandLabel, maxBarHeight);
 }
 
@@ -348,16 +327,13 @@ bool SpectrumPanel::HandleEvent(ftxui::Event event)
 {
 	if (event == ftxui::Event::Tab)
 	{
-		_activeBandIndex =
-			(_activeBandIndex + 1) % static_cast<int>(kBands.size());
+		_activeBandIndex = (_activeBandIndex + 1) % static_cast<int>(kBands.size());
 		_scrollOffset = 0;
 		return true;
 	}
 	if (event == ftxui::Event::TabReverse)
 	{
-		_activeBandIndex =
-			(_activeBandIndex + static_cast<int>(kBands.size()) - 1) %
-			static_cast<int>(kBands.size());
+		_activeBandIndex = (_activeBandIndex + static_cast<int>(kBands.size()) - 1) % static_cast<int>(kBands.size());
 		_scrollOffset = 0;
 		return true;
 	}
@@ -372,8 +348,7 @@ bool SpectrumPanel::HandleEvent(ftxui::Event event)
 		_scrollOffset++; // clamped in Render()
 		return true;
 	}
-	if (event == ftxui::Event::Character('e') ||
-		event == ftxui::Event::Character('E'))
+	if (event == ftxui::Event::Character('e') || event == ftxui::Event::Character('E'))
 	{
 		_hideConnected = !_hideConnected;
 		return true;

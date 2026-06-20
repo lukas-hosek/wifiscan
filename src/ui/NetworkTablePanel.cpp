@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "NetworkTablePanel.hpp"
-#include "utils/TextUtil.hpp"
 #include "Theme.hpp"
+#include "utils/TextUtil.hpp"
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/terminal.hpp>
+#include <functional>
 #include <ranges>
 
 namespace ui
@@ -32,63 +32,56 @@ ftxui::Element RenderSsid(const wifi::Network& net)
 	{
 		return hbox({
 			text("* ") | color(theme::Color(theme::UiColor::ConnectedNetwork)),
-			text(PadRight(ssid, 26)) |
-				color(theme::Color(theme::UiColor::ConnectedNetwork)),
+			text(PadRight(ssid, 26)) | color(theme::Color(theme::UiColor::ConnectedNetwork)),
 		});
 	}
-	return text("  " + PadRight(ssid, 26)) |
-		   color(theme::Color(theme::UiColor::NetworkRow));
+	return text("  " + PadRight(ssid, 26)) | color(theme::Color(theme::UiColor::NetworkRow));
 }
 
 ftxui::Element RenderBssid(const wifi::Network& net)
 {
-	return ftxui::text(PadRight(net._bssid, 17)) |
-		   ftxui::color(theme::Color(theme::UiColor::Muted));
+	return ftxui::text(PadRight(net._bssid, 17)) | ftxui::color(theme::Color(theme::UiColor::Muted));
 }
 
 ftxui::Element RenderChannel(const wifi::Network& net)
 {
 	return ftxui::text(PadRight(std::to_string(net._channel), 4)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+		ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderBand(const wifi::Network& net)
 {
-	return ftxui::text(PadRight(wifi::BandLabel(net._band), 4)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+	return ftxui::text(PadRight(wifi::BandLabel(net._band), 4)) | ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderWidth(const wifi::Network& net)
 {
 	std::string s = net._widthMhz > 0 ? std::to_string(net._widthMhz) : "-";
-	return ftxui::text(PadRight(s, 3)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+	return ftxui::text(PadRight(s, 3)) | ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderStandard(const wifi::Network& net)
 {
 	return ftxui::text(PadRight(wifi::StandardLabel(net._standard), 3)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+		ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderSecurity(const wifi::Network& net)
 {
 	return ftxui::text(PadRight(wifi::SecurityLabel(net._security), 7)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+		ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderRate(const wifi::Network& net)
 {
-	std::string s =
-		net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-";
-	return ftxui::text(PadRight(s, 7)) |
-		   ftxui::color(theme::Color(theme::UiColor::DataValue));
+	std::string s = net._maxRateMbps > 0 ? std::to_string(net._maxRateMbps) + "M" : "-";
+	return ftxui::text(PadRight(s, 7)) | ftxui::color(theme::Color(theme::UiColor::DataValue));
 }
 
 ftxui::Element RenderSignal(const wifi::Network& net)
 {
 	return ftxui::text(PadRight(std::to_string(net._signalDbm) + " dBm", 8)) |
-		   ftxui::color(theme::SignalColor(net._signalDbm));
+		ftxui::color(theme::SignalColor(net._signalDbm));
 }
 
 ftxui::Element RenderQuality(const wifi::Network& net)
@@ -98,13 +91,12 @@ ftxui::Element RenderQuality(const wifi::Network& net)
 
 	int quality = net.SignalQuality();
 	int filled = quality * kQualBarWidth / 100;
-	std::string label =
-		CenterText(std::to_string(quality) + "%", kQualBarWidth);
+	std::string label = CenterText(std::to_string(quality) + "%", kQualBarWidth);
 	return hbox({
-		text(label.substr(0, static_cast<size_t>(filled))) |
-			color(Color::Black) | bgcolor(theme::SignalColor(net._signalDbm)),
-		text(label.substr(static_cast<size_t>(filled))) |
-			color(theme::SignalColor(net._signalDbm)) | bgcolor(Color::GrayDark),
+		text(label.substr(0, static_cast<size_t>(filled))) | color(Color::Black) |
+			bgcolor(theme::SignalColor(net._signalDbm)),
+		text(label.substr(static_cast<size_t>(filled))) | color(theme::SignalColor(net._signalDbm)) |
+			bgcolor(Color::GrayDark),
 	});
 }
 
@@ -160,18 +152,24 @@ struct SortableColumn
 
 static const SortableColumn kSortableColumns[] = {
 	{ColumnType::Signal,
-	 [](const wifi::Network& a, const wifi::Network& b)
-	 { return a._signalDbm != b._signalDbm ? a._signalDbm > b._signalDbm : a._ssid < b._ssid; }},
+		[](const wifi::Network& a, const wifi::Network& b)
+		{
+			return a._signalDbm != b._signalDbm ? a._signalDbm > b._signalDbm : a._ssid < b._ssid;
+		}},
 	{ColumnType::SSID,
-	 [](const wifi::Network& a, const wifi::Network& b)
-	 { return a._ssid < b._ssid; }},
+		[](const wifi::Network& a, const wifi::Network& b)
+		{
+			return a._ssid < b._ssid;
+		}},
 	{ColumnType::Channel,
-	 [](const wifi::Network& a, const wifi::Network& b)
-	 {
-		 if (a._band != b._band) return a._band < b._band;
-		 if (a._channel != b._channel) return a._channel < b._channel;
-		 return a._ssid < b._ssid;
-	 }},
+		[](const wifi::Network& a, const wifi::Network& b)
+		{
+			if (a._band != b._band)
+				return a._band < b._band;
+			if (a._channel != b._channel)
+				return a._channel < b._channel;
+			return a._ssid < b._ssid;
+		}},
 };
 
 using VisibilityMap = std::array<bool, std::size(kColumns)>;
@@ -241,15 +239,13 @@ ftxui::Element BuildHeaderRow(ColumnType activeSort, const VisibilityMap& visibl
 		const auto& col = kColumns[i];
 		bool active = col.type == activeSort;
 		std::string label = active ? std::string(col.header) + "*" : col.header;
-		Color c = active ? theme::Color(theme::UiColor::DataValue)
-						 : theme::Color(theme::UiColor::ColumnHeader);
+		Color c = active ? theme::Color(theme::UiColor::DataValue) : theme::Color(theme::UiColor::ColumnHeader);
 		items.push_back(text(PadRight(label, col.width)) | color(c) | bold);
 	}
 	return hbox(items);
 }
 
-ftxui::Element BuildDataRow(const wifi::Network& net, bool selected,
-							const VisibilityMap& visible)
+ftxui::Element BuildDataRow(const wifi::Network& net, bool selected, const VisibilityMap& visible)
 {
 	using namespace ftxui;
 
@@ -302,11 +298,8 @@ bool NetworkTablePanel::HandleEvent(ftxui::Event event)
 	}
 	if (event == ftxui::Event::Character('s'))
 	{
-		auto it = std::ranges::find(kSortableColumns, _sortColumn,
-									&SortableColumn::type);
-		size_t current = it == std::end(kSortableColumns)
-							 ? 0
-							 : static_cast<size_t>(it - std::begin(kSortableColumns));
+		auto it = std::ranges::find(kSortableColumns, _sortColumn, &SortableColumn::type);
+		size_t current = it == std::end(kSortableColumns) ? 0 : static_cast<size_t>(it - std::begin(kSortableColumns));
 		size_t next = (current + 1) % std::size(kSortableColumns);
 		_sortColumn = kSortableColumns[next].type;
 		_selectedRow = 0;
@@ -315,15 +308,12 @@ bool NetworkTablePanel::HandleEvent(ftxui::Event event)
 	return false;
 }
 
-ftxui::Element
-NetworkTablePanel::Render(const std::vector<wifi::Network>& networks,
-						  int /*allocatedHeight*/)
+ftxui::Element NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, int /*allocatedHeight*/)
 {
 	using namespace ftxui;
 
 	std::vector<wifi::Network> sorted = networks;
-	auto sortIt = std::ranges::find(kSortableColumns, _sortColumn,
-									&SortableColumn::type);
+	auto sortIt = std::ranges::find(kSortableColumns, _sortColumn, &SortableColumn::type);
 	if (sortIt != std::end(kSortableColumns))
 		std::ranges::sort(sorted, sortIt->less);
 
@@ -341,15 +331,13 @@ NetworkTablePanel::Render(const std::vector<wifi::Network>& networks,
 
 	if (sorted.empty())
 	{
-		rows.push_back(text("  (no networks — try: sudo wifiscan)") |
-					   color(theme::Color(theme::UiColor::Muted)));
+		rows.push_back(text("  (no networks — try: sudo wifiscan)") | color(theme::Color(theme::UiColor::Muted)));
 	}
 
 	for (int rowIndex = 0; rowIndex < rowCount; rowIndex++)
 	{
 		bool selected = rowIndex == _selectedRow;
-		auto row = BuildDataRow(sorted[static_cast<size_t>(rowIndex)], selected,
-								visible);
+		auto row = BuildDataRow(sorted[static_cast<size_t>(rowIndex)], selected, visible);
 		if (selected)
 			row = row | focus;
 		rows.push_back(row);

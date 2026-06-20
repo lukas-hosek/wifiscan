@@ -10,25 +10,19 @@ namespace ui
 
 StatusBarPanel::StatusBarPanel(wifi::IScanner& scanner) : _scanner(scanner) {}
 
-void StatusBarPanel::SetStatus(const std::string& msg)
-{
-	_statusMsg = msg;
-}
+void StatusBarPanel::SetStatus(const std::string& msg) { _statusMsg = msg; }
 
 ftxui::Element StatusBarPanel::Render(
-	[[maybe_unused]] const std::vector<wifi::Network>& networks,
-	[[maybe_unused]] int allocatedHeight)
+	[[maybe_unused]] const std::vector<wifi::Network>& networks, [[maybe_unused]] int allocatedHeight)
 {
 	using namespace ftxui;
 
-	static constexpr std::string_view kHintsFull =
-		" [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort  [e] "
-		"hide-connected ";
+	static constexpr std::string_view kHintsFull = " [q] quit  [↑↓] scroll  [←→] spectrum  [Tab] band  [s] sort  [e] "
+												   "hide-connected ";
 	static constexpr std::string_view kHintsCompact = " [q] [↑↓] [←→] [Tab] [s] [e] ";
 	// Arrow glyphs are 3 UTF-8 bytes but 1 display column each; there are 4 of
 	// them in each hint string.
-	static constexpr int kHintColsFull =
-		static_cast<int>(kHintsFull.size()) - 4 * 2;
+	static constexpr int kHintColsFull = static_cast<int>(kHintsFull.size()) - 4 * 2;
 
 	std::string iface = "iface: " + _scanner.GetInterface();
 	int ifaceCols = static_cast<int>(iface.size());

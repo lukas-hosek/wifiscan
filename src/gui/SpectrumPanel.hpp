@@ -25,17 +25,13 @@ private:
 	int _activeBandIndex{0};
 
 	void RenderBandSelector();
-	void RenderYAxis(float leftMarginW, float availH, float topMargin,
-		float barAreaH, float scale) const;
-	void DrawGrid(ImDrawList* draw, ImVec2 origin, float plotW,
-		float baselineAbsY, float barAreaH) const;
-	void DrawChannelTicks(ImDrawList* draw, std::span<const int> channels,
-		float slotW, ImVec2 origin, float baselineAbsY,
-		const std::unordered_set<int>& primaries) const;
-	void DrawNetworkBars(ImDrawList* draw,
-		const std::vector<wifi::Network>& networks, wifi::Band band,
-		std::span<const int> channels, float slotW, ImVec2 origin,
-		float barAreaH, float baselineAbsY, float lineH) const;
+	void RenderYAxis(float leftMarginW, float availH, float topMargin, float barAreaH, float scale) const;
+	void DrawGrid(ImDrawList* draw, ImVec2 origin, float plotW, float baselineAbsY, float barAreaH) const;
+	void DrawChannelTicks(ImDrawList* draw, std::span<const int> channels, float slotW, ImVec2 origin,
+		float baselineAbsY, const std::unordered_set<int>& primaries) const;
+	void DrawNetworkBars(ImDrawList* draw, const std::vector<wifi::Network>& networks, wifi::Band band,
+		std::span<const int> channels, float slotW, ImVec2 origin, float barAreaH, float baselineAbsY,
+		float lineH) const;
 };
 
 } // namespace gui
