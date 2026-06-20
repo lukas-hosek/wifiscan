@@ -286,7 +286,9 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks)
 	}
 
 	// Reserve the content extent so the child's scrollbars/ranges are correct.
-	ImGui::Dummy(ImVec2(plotW, availH));
+	// Use avail.y (inner content height) rather than availH so the dummy never
+	// exceeds the child's content region and a vertical scrollbar is not shown.
+	ImGui::Dummy(ImVec2(plotW, avail.y));
 
 	ImGui::EndChild();
 }
