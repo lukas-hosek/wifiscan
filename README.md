@@ -1,6 +1,8 @@
 # wifiscan
 
-A Linux terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
+A small Linux ImGui 7 terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
+
+<img width="1764" height="1219" alt="image" src="https://github.com/user-attachments/assets/05faf960-3998-4b66-a7bc-671e9d197365" />
 
 <img width="1706" height="1172" alt="image" src="https://github.com/user-attachments/assets/091a97f0-271a-4a0c-8e68-c18423bc4172" />
 
@@ -14,11 +16,11 @@ sudo wifiscan
 # By default the program uses the first wifi interface. To specify an interface explicitly:
 sudo wifiscan wlan0
 
+# Force-run in terminal UI:
+sudo wifiscan --tui
+
 # Non-interactive mode performs a single scan and dumps the network list to a terminal:
 sudo wifiscan --non-interactive
-
-# Graphical mode opens a Dear ImGui window (requires a display; use sudo -E to keep $DISPLAY):
-sudo -E wifiscan --gui
 ```
 
 ## Requirements
@@ -27,12 +29,12 @@ sudo -E wifiscan --gui
 - CMake 3.22+
 - libnl: `sudo apt install libnl-3-dev libnl-genl-3-dev`
 - Root / `CAP_NET_ADMIN` to read scan results
-- For the optional `--gui` mode (built by default): GLFW + OpenGL — `sudo apt install libglfw3-dev`. Disable with `-DWIFISCAN_ENABLE_GUI=OFF` for a terminal-only build with no graphics dependencies.
+- For the ImGui mode (built by default): GLFW + OpenGL — `sudo apt install libglfw3-dev`. Disable with `-DWIFISCAN_ENABLE_GUI=OFF` for a terminal-only build with no graphics dependencies.
 
 ## Install
 
 ```bash
-# Clone with submodules (includes FTXUI, fmt and Dear ImGui)
+# Clone with submodules (includes FTXUI, fmt and ImGui)
 git clone --recurse-submodules https://github.com/lukas-hosek/wifiscan.git
 cd wifiscan
 
