@@ -12,3 +12,5 @@ PointerAlignment: Left
 AlignAfterOpenBracket: DontAlign
 ContinuationIndentWidth: 4
 AlignOperands: DontAlign
+AllowShortLambdasOnASingleLine: None
+ColumnLimit: 120

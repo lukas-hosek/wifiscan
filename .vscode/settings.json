@@ -1,9 +1,16 @@
 {
 	"editor.formatOnSave": false,
+	"editor.formatOnPaste": false,
+	"editor.formatOnType": false,
+	"editor.codeActionsOnSave": {},
 	"C_Cpp.clang_format_style": "file",
 	"C_Cpp.clang_format_fallbackStyle": "none",
 	"[cpp]": {
-		"editor.defaultFormatter": "ms-vscode.cpptools"
+		"editor.defaultFormatter": "ms-vscode.cpptools",
+		"editor.formatOnSave": false,
+		"editor.formatOnPaste": false,
+		"editor.formatOnType": false,
+		"editor.codeActionsOnSave": {}
 	},
 	"cmake.buildDirectory": "${workspaceFolder}/build",
 	"cmake.configureArgs": [
