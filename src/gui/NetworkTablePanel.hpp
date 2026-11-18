@@ -50,8 +50,8 @@ private:
 	// its natural direction.
 	void RenderHeaderCell(ColumnType type, const char* header, bool sortable, bool rightAligned, const CellBox& cell);
 
-	// 1 px rule under the pinned header, across the whole table. Call from the first header cell.
-	static void DrawHeaderRule(const CellBox& headerCell);
+	// 1 px rule along the bottom of the header, across the whole table including the body's scrollbar column.
+	static void DrawHeaderRule(float left, float right, float bottom);
 
 	// Full-row hit area and selection highlight; must be the first item in the row.
 	static void RenderRowSelectable(

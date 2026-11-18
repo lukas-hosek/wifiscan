@@ -130,22 +130,23 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks, std::stri
 
 	float scale = DpiScale();
 	float availHeight = ImGui::GetContentRegionAvail().y;
-	// The plot always shows its horizontal scrollbar, which takes this much off the visible plot height. The
-	// gutter uses the same value so its dBm labels line up with the plot.
-	float plotHeight = std::max(1.0f, availHeight - ImGui::GetStyle().ScrollbarSize);
+	float gutterWidth = kGutterWidth * scale;
 	IChannelView& view = ActiveView();
 
-	ImGui::BeginChild("gutter", ImVec2(kGutterWidth * scale, availHeight), ImGuiChildFlags_None,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-	view.RenderGutter(plotHeight);
-	ImGui::EndChild();
-	ImGui::SameLine(0.0f, 0.0f);
+	// The plot is laid out before the gutter to its left: the gutter's labels must line up with the plot's visible
+	// height, which is only known inside the plot window, once ImGui has decided whether it shows a scrollbar.
+	ImVec2 bodyStart = ImGui::GetCursorPos();
+	ImGui::SetCursorPos(ImVec2(bodyStart.x + gutterWidth, bodyStart.y));
+	float plotHeight = availHeight;
 
 	// One plot window for both modes, so switching modes keeps the horizontal scroll position. Lanes mode can
 	// also scroll vertically; Spectrum mode never has content taller than the window.
-	if (ImGui::BeginChild("plot", ImVec2(0.0f, availHeight), ImGuiChildFlags_None,
-			ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+	if (ImGui::BeginChild(
+			"plot", ImVec2(0.0f, availHeight), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
 	{
+		// Excludes the horizontal scrollbar while there is one
+		plotHeight = std::max(1.0f, ImGui::GetContentRegionAvail().y);
+
 		std::span<const int> channels = plan.Channels();
 		int channelCount = std::max(1, static_cast<int>(channels.size()));
 		float slotWidth = std::max(kMinSlotWidth * scale, ImGui::GetContentRegionAvail().x / channelCount);
@@ -162,6 +163,12 @@ void SpectrumPanel::Render(const std::vector<wifi::Network>& networks, std::stri
 
 		view.RenderPlot(axis, aps, focused, plotHeight, revealSelection, selectedBssid);
 	}
+	ImGui::EndChild();
+
+	ImGui::SetCursorPos(bodyStart);
+	ImGui::BeginChild("gutter", ImVec2(gutterWidth, availHeight), ImGuiChildFlags_None,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	view.RenderGutter(plotHeight);
 	ImGui::EndChild();
 
 	_lastSeenSelection = selectedBssid;

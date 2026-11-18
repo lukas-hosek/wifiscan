@@ -144,6 +144,21 @@ void DrawText(ImDrawList* draw, ImVec2 pos, UiColor color, std::string_view text
 	draw->AddText(pos, theme::Color(color), text.data(), text.data() + text.size());
 }
 
+// The header and body tables must set up identical columns, or their cells won't line up.
+void SetupColumns(const VisibilityMap& visible, float scale)
+{
+	for (size_t i = 0; i < kColumns.size(); ++i)
+	{
+		if (!visible[i])
+			continue;
+		const ColumnDescriptor& column = kColumns[i];
+		bool stretches = column.width <= 0.0f;
+		ImGui::TableSetupColumn(column.header,
+			stretches ? ImGuiTableColumnFlags_WidthStretch : ImGuiTableColumnFlags_WidthFixed,
+			stretches ? 0.0f : column.width * scale, static_cast<ImGuiID>(column.type));
+	}
+}
+
 } // namespace
 
 std::vector<wifi::Network> NetworkTablePanel::SortedNetworks(const std::vector<wifi::Network>& networks) const
@@ -205,44 +220,31 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 	// which lets the row Selectable cover the full row.
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(kColumnGap * 0.5f * scale, 0.0f));
 
-	constexpr ImGuiTableFlags kFlags =
-		ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_PadOuterX;
+	constexpr ImGuiTableFlags kHeaderFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_PadOuterX;
+	constexpr ImGuiTableFlags kBodyFlags = kHeaderFlags | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg;
 
-	if (ImGui::BeginTable("networks", visibleCount, kFlags))
+	// Returns the current cell's box; call it before submitting anything into the cell.
+	auto currentCell = [rowHeight]
 	{
-		for (size_t i = 0; i < kColumns.size(); ++i)
-		{
-			if (!visible[i])
-				continue;
-			const ColumnDescriptor& column = kColumns[i];
-			bool stretches = column.width <= 0.0f;
-			ImGui::TableSetupColumn(column.header,
-				stretches ? ImGuiTableColumnFlags_WidthStretch : ImGuiTableColumnFlags_WidthFixed,
-				stretches ? 0.0f : column.width * scale, static_cast<ImGuiID>(column.type));
-		}
-		ImGui::TableSetupScrollFreeze(0, 1);
+		ImVec2 min = ImGui::GetCursorScreenPos();
+		return CellBox{min, ImVec2(min.x + ImGui::GetContentRegionAvail().x, min.y + rowHeight)};
+	};
 
-		// Returns the current cell's box; call it before submitting anything into the cell.
-		auto currentCell = [rowHeight]
-		{
-			ImVec2 min = ImGui::GetCursorScreenPos();
-			return CellBox{min, ImVec2(min.x + ImGui::GetContentRegionAvail().x, min.y + rowHeight)};
-		};
+	// The header is a table of its own above the scrolling body, so the body's scrollbar starts below the header
+	// instead of running alongside it. The body is laid out first, one row down: the header must match the body's
+	// inner width, which depends on whether the body shows a scrollbar.
+	ImVec2 tableStart = ImGui::GetCursorPos();
+	ImVec2 tableScreenStart = ImGui::GetCursorScreenPos();
+	float tableWidth = ImGui::GetContentRegionAvail().x;
+	float bodyInnerWidth = tableWidth;
 
-		ImGui::TableNextRow(ImGuiTableRowFlags_Headers, rowHeight);
-		int columnIndex = 0;
-		for (size_t i = 0; i < kColumns.size(); ++i)
-		{
-			if (!visible[i])
-				continue;
-			ImGui::TableSetColumnIndex(columnIndex);
-			CellBox cell = currentCell();
-			if (columnIndex == 0)
-				DrawHeaderRule(cell);
-			const ColumnDescriptor& column = kColumns[i];
-			RenderHeaderCell(column.type, column.header, column.sortable, column.rightAligned, cell);
-			++columnIndex;
-		}
+	ImGui::SetCursorPos(ImVec2(tableStart.x, tableStart.y + rowHeight));
+	if (ImGui::BeginTable("networks", visibleCount, kBodyFlags))
+	{
+		SetupColumns(visible, scale);
+		// The current window is now the body's own scrolling child.
+		if (ImGui::GetScrollMaxY() > 0.0f)
+			bodyInnerWidth -= ImGui::GetStyle().ScrollbarSize;
 
 		for (size_t row = 0; row < sorted.size(); ++row)
 		{
@@ -251,7 +253,7 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 
 			ImGui::PushID(static_cast<int>(row));
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, rowHeight);
-			columnIndex = 0;
+			int columnIndex = 0;
 			for (size_t i = 0; i < kColumns.size(); ++i)
 			{
 				if (!visible[i])
@@ -268,6 +270,25 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 
 		ImGui::EndTable();
 	}
+
+	ImGui::SetCursorPos(tableStart);
+	if (ImGui::BeginTable("header", visibleCount, kHeaderFlags, ImVec2(bodyInnerWidth, 0.0f)))
+	{
+		SetupColumns(visible, scale);
+		ImGui::TableNextRow(ImGuiTableRowFlags_Headers, rowHeight);
+		int columnIndex = 0;
+		for (size_t i = 0; i < kColumns.size(); ++i)
+		{
+			if (!visible[i])
+				continue;
+			ImGui::TableSetColumnIndex(columnIndex);
+			const ColumnDescriptor& column = kColumns[i];
+			RenderHeaderCell(column.type, column.header, column.sortable, column.rightAligned, currentCell());
+			++columnIndex;
+		}
+		ImGui::EndTable();
+	}
+	DrawHeaderRule(tableScreenStart.x, tableScreenStart.x + tableWidth, tableScreenStart.y + rowHeight);
 
 	ImGui::PopStyleVar();
 
@@ -325,18 +346,11 @@ void NetworkTablePanel::RenderHeaderCell(
 			ImVec2(left, top), ImVec2(left + arrowW, top), ImVec2(left + arrowW * 0.5f, top + arrowH), accent);
 }
 
-void NetworkTablePanel::DrawHeaderRule(const CellBox& headerCell)
+void NetworkTablePanel::DrawHeaderRule(float left, float right, float bottom)
 {
-	// ImGui's own frozen-row border only appears once the table has scrolled, so draw the rule directly. The clip
-	// rect is this column's; widen it to the whole table, which is the current (scrolling) window.
-	ImDrawList* draw = ImGui::GetWindowDrawList();
-	float left = ImGui::GetWindowPos().x;
-	float right = left + ImGui::GetWindowWidth();
 	float thickness = DpiScale();
-	float y = headerCell.max.y - thickness * 0.5f;
-	ImGui::PushClipRect(ImVec2(left, draw->GetClipRectMin().y), ImVec2(right, draw->GetClipRectMax().y), false);
-	draw->AddLine(ImVec2(left, y), ImVec2(right, y), theme::Color(UiColor::Border), thickness);
-	ImGui::PopClipRect();
+	float y = bottom - thickness * 0.5f;
+	ImGui::GetWindowDrawList()->AddLine(ImVec2(left, y), ImVec2(right, y), theme::Color(UiColor::Border), thickness);
 }
 
 void NetworkTablePanel::RenderRowSelectable(
@@ -362,7 +376,7 @@ void NetworkTablePanel::RenderRowSelectable(
 		ImGui::SetScrollHereY();
 
 	// 1 px accent outline around the whole row. The current clip rect is this column's, so widen it to the row;
-	// its vertical range already excludes the pinned header, so a row scrolled under the header stays hidden.
+	// its vertical range is the body's, so a row scrolled up past the header stays hidden.
 	ImDrawList* draw = ImGui::GetWindowDrawList();
 	ImVec2 rowMin = ImGui::GetItemRectMin();
 	ImVec2 rowMax = ImGui::GetItemRectMax();

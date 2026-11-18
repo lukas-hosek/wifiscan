@@ -5,6 +5,7 @@
 #include "ImGuiExtras.hpp"
 #include "Theme.hpp"
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 
@@ -27,8 +28,6 @@ constexpr float kLanePitch = 27.0f;
 constexpr float kBarHeight = 22.0f;
 constexpr float kBarRounding = 3.0f;
 constexpr float kPrimaryStripHeight = 4.0f;
-// Minimum horizontal gap between two bars (with their labels) in one lane
-constexpr float kLaneGap = 8.0f;
 constexpr float kGutterLabelInset = 6.0f;
 
 // A slot counts an AP when their overlap is more than this fraction of the slot, so a 2.4 GHz span that only
@@ -143,8 +142,8 @@ void LanesView::RenderPlot(const ChannelAxis& axis, std::span<const BandAp> aps,
 std::vector<LanesView::PlacedBar> LanesView::PackLanes(
 	const ChannelAxis& axis, std::span<const BandAp> aps, int& laneCount)
 {
-	float gap = kLaneGap * DpiScale();
-	// Occupied [left, right] intervals per lane
+	// Occupied [left, right] intervals per lane. Intervals that only touch share a lane: 5/6 GHz channels meet edge to
+	// edge without overlapping, and the bar outlines are drawn inside the bars, so touching bars stay distinct.
 	std::vector<std::vector<std::pair<float, float>>> lanes;
 	std::vector<PlacedBar> bars;
 	bars.reserve(aps.size());
@@ -168,7 +167,7 @@ std::vector<LanesView::PlacedBar> LanesView::PackLanes(
 			return std::none_of(lane.begin(), lane.end(),
 				[&](const std::pair<float, float>& taken)
 				{
-					return reservedLeft < taken.second + gap && reservedRight > taken.first - gap;
+					return reservedLeft < taken.second && reservedRight > taken.first;
 				});
 		};
 		size_t lane = 0;
@@ -196,17 +195,25 @@ void LanesView::DrawBar(ImDrawList* draw, ImVec2 origin, const PlacedBar& bar, b
 	float rounding = kBarRounding * scale;
 	ImU32 color = theme::SignalColor(bar.ap->network->_signalDbm);
 
-	ImVec2 barMin(origin.x + bar.barLeft, top);
-	ImVec2 barMax(origin.x + bar.barRight, bottom);
+	// Whole pixels, so two bars that meet share exactly one edge instead of blending across a fractional pixel
+	ImVec2 barMin(std::round(origin.x + bar.barLeft), std::round(top));
+	ImVec2 barMax(std::round(origin.x + bar.barRight), std::round(bottom));
 	draw->AddRectFilled(
 		barMin, barMax, theme::WithAlpha(color, (isFocused ? kFocusedBarFillAlpha : kBarFillAlpha) * alpha), rounding);
-	draw->AddRect(barMin, barMax, theme::WithAlpha(color, (isFocused ? 1.0f : kBarBorderAlpha) * alpha), rounding, 0,
-		(isFocused ? 2.0f : 1.0f) * scale);
+
+	// The outline lies entirely inside the bar, so the outlines of two touching bars sit side by side instead of
+	// overlapping. AddRect centres its stroke half a pixel inside the rect, which only fits a 1 px stroke; move the
+	// stroke's centre line to half its thickness in, and shrink the corner radius to match the fill's outer curve.
+	float thickness = (isFocused ? 2.0f : 1.0f) * scale;
+	float inset = thickness * 0.5f - 0.5f;
+	draw->AddRect(ImVec2(barMin.x + inset, barMin.y + inset), ImVec2(barMax.x - inset, barMax.y - inset),
+		theme::WithAlpha(color, (isFocused ? 1.0f : kBarBorderAlpha) * alpha),
+		std::max(0.0f, rounding - thickness * 0.5f), thickness);
 
 	// The primary 20 MHz inside a wider block
 	if (bar.primaryRight > bar.primaryLeft)
-		draw->AddRectFilled(ImVec2(origin.x + bar.primaryLeft, bottom - kPrimaryStripHeight * scale),
-			ImVec2(origin.x + bar.primaryRight, bottom), theme::WithAlpha(color, alpha), rounding,
+		draw->AddRectFilled(ImVec2(std::round(origin.x + bar.primaryLeft), barMax.y - kPrimaryStripHeight * scale),
+			ImVec2(std::round(origin.x + bar.primaryRight), barMax.y), theme::WithAlpha(color, alpha), rounding,
 			ImDrawFlags_RoundCornersBottom);
 
 	// Text is centred in the part of the bar above the primary strip
