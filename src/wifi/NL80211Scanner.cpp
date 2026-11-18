@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "NL80211Scanner.hpp"
+#include "ChannelPlan.hpp"
 #include "IE.hpp"
 #include "utils/TextUtil.hpp"
 #include <array>
 #include <cerrno>
 #include <chrono>
-#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -17,6 +17,7 @@
 #include <netlink/genl/ctrl.h>
 #include <netlink/genl/genl.h>
 #include <netlink/netlink.h>
+#include <optional>
 #include <poll.h>
 
 namespace wifi
@@ -58,6 +59,16 @@ struct ParsedIes
 	// WPA1 Vendor-Specific IE (id 221, Microsoft OUI DD-50-F2 type 01) — legacy WPA-TKIP signalling.
 	const uint8_t* wpa1{nullptr};
 	uint16_t wpa1Len{0};
+
+	// 802.11ax HE Operation Extension IE (id 255, ext 36), payload after the ext ID — carries the 6 GHz operating
+	// channel, since 6 GHz beacons have no HT/VHT Operation IEs.
+	const uint8_t* heOp{nullptr};
+	uint8_t heOpLen{0};
+
+	// 802.11be EHT Operation Extension IE (id 255, ext 106), payload after the ext ID — can override the operating
+	// channel, e.g. for 320 MHz.
+	const uint8_t* ehtOp{nullptr};
+	uint8_t ehtOpLen{0};
 
 	// True if any 802.11ax HE Capabilities or HE Operation Extension IE was seen (id 255, ext 35/36).
 	bool he{false};
@@ -186,6 +197,17 @@ ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 					out.he = true;
 				else if (extId == ie::EXT_EHT_CAPABILITY || extId == ie::EXT_EHT_OPERATION)
 					out.eht = true;
+
+				if (extId == ie::EXT_HE_OPERATION)
+				{
+					out.heOp = payload + 1;
+					out.heOpLen = static_cast<uint8_t>(elementLength - 1);
+				}
+				else if (extId == ie::EXT_EHT_OPERATION)
+				{
+					out.ehtOp = payload + 1;
+					out.ehtOpLen = static_cast<uint8_t>(elementLength - 1);
+				}
 			}
 			break;
 
@@ -198,97 +220,140 @@ ParsedIes ScanIes(const uint8_t* ieData, int ieLength, std::string& ssidOut)
 	return out;
 }
 
-// Maps NL80211_BSS_CHAN_WIDTH enum → MHz (0 if not a recognised real-air
-// width).
-uint16_t WidthFromNlCode(uint32_t code)
+// A BSS's operating channel: its total bandwidth and the edges of the spectrum it occupies
+struct OperatingChannel
 {
-	switch (code)
+	uint16_t widthMhz;
+	uint32_t lowMhz;
+	uint32_t highMhz;
+};
+
+OperatingChannel CentredOn(uint32_t centreMhz, uint16_t widthMhz)
+{
+	return OperatingChannel{widthMhz, centreMhz - widthMhz / 2U, centreMhz + widthMhz / 2U};
+}
+
+// From VHT onwards a channel is given as up to two centre frequency segments (CCFS, channel numbers). Up to 80 MHz,
+// CCFS0 is the centre. For a wider channel CCFS0 is the centre of the primary half and CCFS1 the centre of the
+// whole channel, except in two older encodings: VHT's deprecated 160 MHz code puts the centre in CCFS0 (CCFS1 = 0),
+// and 80+80 puts the second, separate segment in CCFS1.
+OperatingChannel FromSegments(uint16_t widthMhz, uint8_t ccfs0, uint8_t ccfs1, Band band)
+{
+	uint32_t ccfs0Mhz = ChannelToFreq(ccfs0, band);
+	if (widthMhz <= 80 || ccfs1 == 0)
+		return CentredOn(ccfs0Mhz, widthMhz);
+
+	// The primary half's centre sits a quarter of the width (in 5 MHz channel numbers: width / 20) from the centre
+	int halfOffset = widthMhz / 20;
+	if (std::abs(static_cast<int>(ccfs1) - static_cast<int>(ccfs0)) == halfOffset)
+		return CentredOn(ChannelToFreq(ccfs1, band), widthMhz);
+
+	// 80+80: a range can't describe two separate segments, so cover only the one with the primary channel
+	OperatingChannel primarySegment = CentredOn(ccfs0Mhz, 80);
+	primarySegment.widthMhz = widthMhz;
+	return primarySegment;
+}
+
+// EHT Operation: params(1), basic EHT-MCS/NSS set(4), then — when params bit 0 is set — the EHT Operation
+// Information: control (bits 0-2 width), CCFS0, CCFS1.
+std::optional<OperatingChannel> FromEhtOperation(const ParsedIes& parsed, Band band)
+{
+	constexpr size_t kInfoOffset = 5;
+	if (parsed.ehtOp == nullptr || parsed.ehtOpLen < kInfoOffset + 3 || (parsed.ehtOp[0] & 0x01) == 0)
+		return std::nullopt;
+
+	constexpr std::array<uint16_t, 5> kWidths{20, 40, 80, 160, 320};
+	const uint8_t* info = parsed.ehtOp + kInfoOffset;
+	size_t widthCode = info[0] & 0x07;
+	if (widthCode >= kWidths.size())
+		return std::nullopt;
+	return FromSegments(kWidths[widthCode], info[1], info[2], band);
+}
+
+// HE Operation: params(3, little-endian), BSS colour(1), basic HE-MCS/NSS set(2), then optional fields flagged in
+// params: VHT Operation Information(3, bit 14), Max Co-Hosted BSSID Indicator(1, bit 15) and the 6 GHz Operation
+// Information(5, bit 17): primary channel, control (bits 0-1 width), CCFS0, CCFS1, minimum rate.
+std::optional<OperatingChannel> FromHe6GhzOperation(const ParsedIes& parsed)
+{
+	constexpr size_t kFixedLength = 6;
+	if (parsed.heOp == nullptr || parsed.heOpLen < kFixedLength)
+		return std::nullopt;
+
+	uint32_t params = parsed.heOp[0] | (parsed.heOp[1] << 8) | (parsed.heOp[2] << 16);
+	if ((params & (1U << 17)) == 0)
+		return std::nullopt;
+
+	size_t offset = kFixedLength;
+	if (params & (1U << 14))
+		offset += 3;
+	if (params & (1U << 15))
+		offset += 1;
+	if (parsed.heOpLen < offset + 5)
+		return std::nullopt;
+
+	constexpr std::array<uint16_t, 4> kWidths{20, 40, 80, 160};
+	const uint8_t* info = parsed.heOp + offset;
+	return FromSegments(kWidths[info[1] & 0x03], info[2], info[3], Band::GHz6);
+}
+
+// VHT Operation: channel width code, CCFS0, CCFS1. Code 0 means 20/40 MHz, which the HT Operation IE describes.
+std::optional<OperatingChannel> FromVhtOperation(const ParsedIes& parsed)
+{
+	if (parsed.vhtOp == nullptr || parsed.vhtOpLen < 3)
+		return std::nullopt;
+
+	uint8_t widthCode = parsed.vhtOp[0];
+	uint8_t ccfs0 = parsed.vhtOp[1];
+	uint8_t ccfs1 = parsed.vhtOp[2];
+	switch (widthCode)
 	{
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-		return 20;
-	case NL80211_CHAN_WIDTH_40:
-		return 40;
-	case NL80211_CHAN_WIDTH_80:
-		return 80;
-	case NL80211_CHAN_WIDTH_80P80:
-	case NL80211_CHAN_WIDTH_160:
-		return 160;
-#ifdef NL80211_CHAN_WIDTH_320
-	case NL80211_CHAN_WIDTH_320:
-		return 320;
-#endif
+	case 1:
+		return FromSegments(ccfs1 == 0 ? 80 : 160, ccfs0, ccfs1, Band::GHz5);
+	case 2: // deprecated 160 MHz encoding
+	case 3: // deprecated 80+80 MHz encoding
+		return FromSegments(160, ccfs0, ccfs1, Band::GHz5);
 	default:
-		return 0;
+		return std::nullopt;
 	}
 }
 
-// Resolves (widthMhz, centerFreq1Mhz). Priority: kernel attr → VHT Op IE → HT
-// Op IE → 20.
-void DeriveWidth(
-	uint32_t nlWidthCode, const ParsedIes& parsed, Band band, uint16_t& outWidthMhz, uint32_t& outCenterFreq1Mhz)
+// HT Operation: primary channel, then info byte 1 with the secondary channel offset (bits 0-1: 1 above, 3 below)
+// and the STA channel width (bit 2: 40 MHz allowed). 40 MHz needs both.
+std::optional<OperatingChannel> FromHtOperation(const ParsedIes& parsed, uint32_t primaryMhz)
 {
-	outWidthMhz = 0;
-	outCenterFreq1Mhz = 0;
+	if (parsed.htOp == nullptr || parsed.htOpLen < 2)
+		return std::nullopt;
 
-	// CCFS0/CCFS1 are channel numbers within the per-band operating class —
-	// 5 GHz uses base 5000 MHz, 6 GHz uses base 5950 MHz.
-	uint32_t baseMhz = (band == Band::GHz6) ? 5950U : 5000U;
-
-	if (parsed.vhtOp && parsed.vhtOpLen >= 3)
+	uint8_t info = parsed.htOp[1];
+	if ((info & 0x04) == 0)
+		return std::nullopt;
+	switch (info & 0x03)
 	{
-		uint8_t ccfs0 = parsed.vhtOp[1];
-		if (ccfs0 != 0)
-			outCenterFreq1Mhz = baseMhz + static_cast<uint32_t>(ccfs0) * 5U;
+	case 1:
+		return CentredOn(primaryMhz + 10U, 40);
+	case 3:
+		return CentredOn(primaryMhz - 10U, 40);
+	default:
+		return std::nullopt;
 	}
+}
 
-	uint16_t fromKernel = WidthFromNlCode(nlWidthCode);
-	if (fromKernel != 0)
-	{
-		outWidthMhz = fromKernel;
-		return;
-	}
+// The operating channel from the most specific Operation IE the BSS advertises; 20 MHz on the primary channel when
+// there is none. EHT goes first because it is only included when it describes more than the older IEs do.
+OperatingChannel DeriveOperatingChannel(const ParsedIes& parsed, Band band, uint32_t primaryMhz)
+{
+	std::optional<OperatingChannel> channel = FromEhtOperation(parsed, band);
+	if (!channel && band == Band::GHz6)
+		channel = FromHe6GhzOperation(parsed);
+	if (!channel && band == Band::GHz5)
+		channel = FromVhtOperation(parsed);
+	if (!channel && (band == Band::GHz2_4 || band == Band::GHz5))
+		channel = FromHtOperation(parsed, primaryMhz);
 
-	if (parsed.vhtOp && parsed.vhtOpLen >= 3)
-	{
-		uint8_t chWidth = parsed.vhtOp[0];
-		uint8_t ccfs0 = parsed.vhtOp[1];
-		uint8_t ccfs1 = parsed.vhtOpLen >= 3 ? parsed.vhtOp[2] : 0;
-
-		if (chWidth == 1)
-		{
-			if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) - static_cast<int>(ccfs0)) == 8)
-				outWidthMhz = 160;
-			else if (ccfs1 != 0 && std::abs(static_cast<int>(ccfs1) - static_cast<int>(ccfs0)) == 16)
-				outWidthMhz = 160; // treat 80+80 like 160 for the rate table
-			else
-				outWidthMhz = 80;
-			return;
-		}
-		if (chWidth == 2)
-		{
-			outWidthMhz = 160;
-			return;
-		}
-		if (chWidth == 3)
-		{
-			outWidthMhz = 160;
-			return;
-		}
-	}
-
-	if (parsed.htOp && parsed.htOpLen >= 2)
-	{
-		uint8_t info1 = parsed.htOp[1];
-		if (info1 & 0x04)
-		{
-			outWidthMhz = 40;
-			return;
-		}
-	}
-
-	outWidthMhz = 20;
-	(void)band;
+	// A malformed IE can describe a channel that doesn't even contain the primary one
+	if (!channel || primaryMhz < channel->lowMhz || primaryMhz > channel->highMhz)
+		return CentredOn(primaryMhz, 20);
+	return *channel;
 }
 
 WifiStandard DeriveStandard(const ParsedIes& parsed, Band band)
@@ -816,9 +881,6 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 
 	TryGetU32(bssAttrs[NL80211_BSS_FREQUENCY], network._frequency);
 
-	uint32_t nlWidthCode = UINT32_MAX;
-	TryGetU32(bssAttrs[NL80211_BSS_CHAN_WIDTH], nlWidthCode);
-
 	uint16_t capabilityBits = 0;
 	TryGetU16(bssAttrs[NL80211_BSS_CAPABILITY], capabilityBits);
 
@@ -860,7 +922,18 @@ int NL80211Scanner::ProcessBssMessage(nl_msg* message)
 		network._channelUtilization = static_cast<int16_t>(parsed.bssLoad[2]);
 	}
 
-	DeriveWidth(nlWidthCode, parsed, network._band, network._widthMhz, network._centerFreq1Mhz);
+	if (network._frequency != 0)
+	{
+		OperatingChannel channel = DeriveOperatingChannel(parsed, network._band, network._frequency);
+		network._widthMhz = channel.widthMhz;
+		network._frequencyLow = channel.lowMhz;
+		network._frequencyHigh = channel.highMhz;
+		ChannelRange range = ChannelPlan(network._band)
+								 .ChannelRangeWithin(channel.lowMhz, channel.highMhz)
+								 .value_or(ChannelRange{network._channel, network._channel});
+		network._channelLow = range.low;
+		network._channelHigh = range.high;
+	}
 	network._standard = DeriveStandard(parsed, network._band);
 	network._security = DeriveSecurity(parsed, capabilityBits);
 	network._spatialStreams = DeriveSpatialStreams(parsed);

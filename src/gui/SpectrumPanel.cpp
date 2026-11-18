@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <imgui.h>
+#include <optional>
 #include <span>
 
 namespace gui
@@ -78,8 +79,17 @@ std::vector<BandAp> SpectrumPanel::CollectBandAps(
 	std::vector<BandAp> aps;
 	for (const wifi::Network& net : networks)
 	{
-		if (std::optional<wifi::SlotSpan> span = plan.SpanOf(net))
-			aps.push_back(BandAp{&net, *span});
+		// Channel numbers repeat across bands, so a lookup by number alone could place an AP from another band.
+		if (net._band != plan.GetBand())
+			continue;
+		int primarySlot = plan.SlotOf(net._channel);
+		std::optional<float> lo = plan.SlotPositionOf(net._frequencyLow, net._channelLow);
+		std::optional<float> hi = plan.SlotPositionOf(net._frequencyHigh, net._channelHigh);
+		if (primarySlot < 0 || !lo || !hi)
+			continue;
+
+		float primary = static_cast<float>(primarySlot);
+		aps.push_back(BandAp{&net, SlotSpan{*lo, *hi, primary, primary + 1.0f}});
 	}
 	std::stable_sort(aps.begin(), aps.end(),
 		[](const BandAp& a, const BandAp& b)

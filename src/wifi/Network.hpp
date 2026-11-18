@@ -54,27 +54,33 @@ struct Network
 	// MAC address of the access point formatted as "AA:BB:CC:DD:EE:FF"
 	std::string _bssid;
 
-	// Center frequency in MHz (e.g. 2412 for 2.4 GHz channel 1)
+	// Center frequency of the primary 20 MHz channel in MHz (e.g. 2412 for 2.4 GHz channel 1)
 	uint32_t _frequency;
 
 	// Received signal strength in dBm; converted from kernel mBm value (divided
 	// by 100)
 	int32_t _signalDbm;
 
-	// 802.11 channel number derived from frequency
+	// 802.11 channel number of the primary channel, derived from _frequency
 	int _channel;
 
 	Band _band;
 
+	// Edges of the whole operating channel in MHz (centre +- width / 2). For 80+80 MHz only the 80 MHz segment that
+	// holds the primary channel. 0 when the frequency is unknown.
+	uint32_t _frequencyLow{0};
+	uint32_t _frequencyHigh{0};
+
+	// Lowest and highest channel of the band whose centre lies within [_frequencyLow, _frequencyHigh], edges
+	// included. On 2.4 GHz this includes the neighbours the signal bleeds into (20 MHz on channel 6 gives 4..8), so
+	// overlapping ranges mean interfering networks. On 5/6 GHz it is exactly the network's own 20 MHz channels.
+	int _channelLow{0};
+	int _channelHigh{0};
+
 	// True when the kernel reports NL80211_BSS_STATUS_ASSOCIATED for this BSS
 	bool _connected;
 
-	// Center frequency of the primary 80/160 MHz segment in MHz, derived from
-	// the VHT/HE Operation IE (CCFS0). 0 when the AP is 20/40 MHz only or
-	// unknown.
-	uint32_t _centerFreq1Mhz{0};
-
-	// Operating channel width in MHz: 20, 40, 80, 160, 320. 0 means unknown.
+	// Operating channel width in MHz: 20, 40, 80, 160, 320 (80+80 counts as 160). 0 means unknown.
 	uint16_t _widthMhz{0};
 
 	// Detected 802.11 PHY generation
@@ -107,6 +113,8 @@ struct Network
 };
 
 int FreqToChannel(uint32_t frequencyMhz) noexcept;
+// Centre frequency of a channel of the band in MHz; 0 for Band::Unknown
+uint32_t ChannelToFreq(int channel, Band band) noexcept;
 Band FreqToBand(uint32_t frequencyMhz) noexcept;
 std::string BandLabel(Band band);
 

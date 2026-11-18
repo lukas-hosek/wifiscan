@@ -9,9 +9,9 @@
 namespace gui
 {
 
-float ChannelAxis::ClippedLeft(const wifi::SlotSpan& span) const { return std::max(0.0f, SlotX(span.lo)); }
+float ChannelAxis::ClippedLeft(const SlotSpan& span) const { return std::max(0.0f, SlotX(span.lo)); }
 
-float ChannelAxis::ClippedRight(const wifi::SlotSpan& span) const { return std::min(plotWidth, SlotX(span.hi)); }
+float ChannelAxis::ClippedRight(const SlotSpan& span) const { return std::min(plotWidth, SlotX(span.hi)); }
 
 void ChannelAxis::DrawTicks(ImDrawList* draw, ImVec2 origin, float top, float rowHeight) const
 {
@@ -29,7 +29,7 @@ void ChannelAxis::DrawTicks(ImDrawList* draw, ImVec2 origin, float top, float ro
 	}
 }
 
-void ChannelAxis::ScrollIntoView(const wifi::SlotSpan& span) const
+void ChannelAxis::ScrollIntoView(const SlotSpan& span) const
 {
 	float left = ClippedLeft(span);
 	float right = ClippedRight(span);

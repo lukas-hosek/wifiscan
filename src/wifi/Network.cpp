@@ -35,6 +35,25 @@ int FreqToChannel(uint32_t frequencyMhz) noexcept
 	return 0;
 }
 
+uint32_t ChannelToFreq(int channel, Band band) noexcept
+{
+	auto onGrid = [channel](uint32_t baseMhz)
+	{
+		return baseMhz + 5U * static_cast<uint32_t>(channel);
+	};
+	switch (band)
+	{
+	case Band::GHz2_4:
+		return channel == 14 ? 2484U : onGrid(2407U);
+	case Band::GHz5:
+		return onGrid(5000U);
+	case Band::GHz6:
+		return channel == 2 ? 5935U : onGrid(5950U);
+	default:
+		return 0;
+	}
+}
+
 Band FreqToBand(uint32_t frequencyMhz) noexcept
 {
 	if (frequencyMhz >= 2400 && frequencyMhz < 2500)

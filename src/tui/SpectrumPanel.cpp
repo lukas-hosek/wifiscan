@@ -34,25 +34,27 @@ struct ChannelOccupancy
 {
 	// Networks whose PRIMARY channel is this column — labels appear only here.
 	std::vector<const wifi::Network*> primaryNets;
-	// Networks whose operating spread touches this column — bar uses the
-	// strongest.
+	// Networks that extend into this column, 2.4 GHz neighbours included — bar
+	// uses the strongest.
 	std::vector<const wifi::Network*> coveringNets;
 };
 
 // Buckets the visible networks per channel for a single band. Each network is
 // recorded once on its primary channel (for label placement) and once on every
-// channel its operating bandwidth spans (for bar height/colour).
+// channel it extends into (for bar height/colour).
 std::map<int, ChannelOccupancy> GroupByChannel(const std::vector<wifi::Network>& networks, wifi::Band band)
 {
+	std::span<const int> channels = wifi::ChannelPlan(band).Channels();
 	std::map<int, ChannelOccupancy> byChannel;
 	for (const auto& net : networks)
 	{
 		if (net._band != band || net._channel <= 0)
 			continue;
 		byChannel[net._channel].primaryNets.push_back(&net);
-		for (int ch : wifi::ChannelPlan::CoveredChannels(net))
+		// The band's channel list, not every integer: 5/6 GHz channel numbers go in steps of 4.
+		for (int ch : channels)
 		{
-			if (ch > 0)
+			if (ch >= net._channelLow && ch <= net._channelHigh)
 				byChannel[ch].coveringNets.push_back(&net);
 		}
 	}
