@@ -22,14 +22,21 @@ struct ColumnDescriptor
 {
 	ColumnType type;
 	const char* header;
-	// Content width in px at 1x scale; 0 marks the SSID column, which stretches
+	// Content width in px at 1x scale
 	float width;
 	bool sortable;
 	bool rightAligned;
 };
 
+// Layout in px at 1x scale
+// Fits the longest possible SSID (32 characters) plus the connected dot. Fixed rather than stretching, so on a wide
+// window the values stay next to their SSID.
+constexpr float kSsidWidth = 280.0f;
+// On a narrow window the SSID column gives up width down to this before other columns start to drop
+constexpr float kSsidMinWidth = 160.0f;
+
 constexpr std::array<ColumnDescriptor, 9> kColumns = {{
-	{ColumnType::SSID, "SSID", 0.0f, true, false},
+	{ColumnType::SSID, "SSID", kSsidWidth, true, false},
 	{ColumnType::BSSID, "BSSID", 150.0f, false, false},
 	{ColumnType::Channel, "CH", 40.0f, true, false},
 	{ColumnType::Width, "WIDTH", 64.0f, false, false},
@@ -40,9 +47,6 @@ constexpr std::array<ColumnDescriptor, 9> kColumns = {{
 	{ColumnType::Signal, "SIGNAL", 176.0f, true, false},
 }};
 
-// Layout in px at 1x scale
-// The SSID column stretches, but below this width other columns start to drop
-constexpr float kSsidMinWidth = 160.0f;
 // Cells are padded by half of this on each side, which leaves this gap between columns
 constexpr float kColumnGap = 12.0f;
 constexpr float kRowHeight = 26.0f;
@@ -75,26 +79,27 @@ int FindColumnIndex(ColumnType type)
 	return -1;
 }
 
+// Total 1x width of the visible columns and their gaps, with the SSID column counted at ssidWidth
+float ColumnsWidth(const VisibilityMap& visible, float ssidWidth)
+{
+	float width = 0.0f;
+	for (size_t i = 0; i < kColumns.size(); ++i)
+	{
+		if (visible[i])
+			width += (kColumns[i].type == ColumnType::SSID ? ssidWidth : kColumns[i].width) + kColumnGap;
+	}
+	return width;
+}
+
 // availWidth is in screen px; scale converts the 1x design widths to match.
 VisibilityMap ComputeVisibility(float availWidth, float scale)
 {
 	VisibilityMap visible;
 	visible.fill(true);
 
-	auto requiredWidth = [&]
-	{
-		float width = 0.0f;
-		for (size_t i = 0; i < kColumns.size(); ++i)
-		{
-			if (visible[i])
-				width += (kColumns[i].width > 0.0f ? kColumns[i].width : kSsidMinWidth) + kColumnGap;
-		}
-		return width * scale;
-	};
-
 	for (ColumnType type : kDropOrder)
 	{
-		if (requiredWidth() <= availWidth)
+		if (ColumnsWidth(visible, kSsidMinWidth) * scale <= availWidth)
 			break;
 		int idx = FindColumnIndex(type);
 		if (idx >= 0)
@@ -144,18 +149,24 @@ void DrawText(ImDrawList* draw, ImVec2 pos, UiColor color, std::string_view text
 	draw->AddText(pos, theme::Color(color), text.data(), text.data() + text.size());
 }
 
+// The SSID column's 1x width: kSsidWidth when there is room, less (down to kSsidMinWidth) when the window is too
+// narrow for it and the other visible columns.
+float SsidWidth(const VisibilityMap& visible, float availWidth, float scale)
+{
+	return std::clamp(availWidth / scale - ColumnsWidth(visible, 0.0f), kSsidMinWidth, kSsidWidth);
+}
+
 // The header and body tables must set up identical columns, or their cells won't line up.
-void SetupColumns(const VisibilityMap& visible, float scale)
+void SetupColumns(const VisibilityMap& visible, float ssidWidth, float scale)
 {
 	for (size_t i = 0; i < kColumns.size(); ++i)
 	{
 		if (!visible[i])
 			continue;
 		const ColumnDescriptor& column = kColumns[i];
-		bool stretches = column.width <= 0.0f;
-		ImGui::TableSetupColumn(column.header,
-			stretches ? ImGuiTableColumnFlags_WidthStretch : ImGuiTableColumnFlags_WidthFixed,
-			stretches ? 0.0f : column.width * scale, static_cast<ImGuiID>(column.type));
+		float width = column.type == ColumnType::SSID ? ssidWidth : column.width;
+		ImGui::TableSetupColumn(
+			column.header, ImGuiTableColumnFlags_WidthFixed, width * scale, static_cast<ImGuiID>(column.type));
 	}
 }
 
@@ -212,8 +223,10 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 
 	float scale = DpiScale();
 	float rowHeight = kRowHeight * scale;
-	VisibilityMap visible =
-		ComputeVisibility(ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize, scale);
+	// Room for the columns, keeping space for the body's scrollbar
+	float columnsAvail = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize;
+	VisibilityMap visible = ComputeVisibility(columnsAvail, scale);
+	float ssidWidth = SsidWidth(visible, columnsAvail, scale);
 	int visibleCount = static_cast<int>(std::count(visible.begin(), visible.end(), true));
 
 	// No vertical cell padding: rows take their height from rowHeight and every cell centres its own content,
@@ -241,7 +254,7 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 	ImGui::SetCursorPos(ImVec2(tableStart.x, tableStart.y + rowHeight));
 	if (ImGui::BeginTable("networks", visibleCount, kBodyFlags))
 	{
-		SetupColumns(visible, scale);
+		SetupColumns(visible, ssidWidth, scale);
 		// The current window is now the body's own scrolling child.
 		if (ImGui::GetScrollMaxY() > 0.0f)
 			bodyInnerWidth -= ImGui::GetStyle().ScrollbarSize;
@@ -274,7 +287,7 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 	ImGui::SetCursorPos(tableStart);
 	if (ImGui::BeginTable("header", visibleCount, kHeaderFlags, ImVec2(bodyInnerWidth, 0.0f)))
 	{
-		SetupColumns(visible, scale);
+		SetupColumns(visible, ssidWidth, scale);
 		ImGui::TableNextRow(ImGuiTableRowFlags_Headers, rowHeight);
 		int columnIndex = 0;
 		for (size_t i = 0; i < kColumns.size(); ++i)
