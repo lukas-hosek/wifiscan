@@ -1,12 +1,42 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "ImGuiExtras.hpp"
+#include "Fonts.hpp"
 #include "Theme.hpp"
-#include <imgui.h>
 #include <vector>
 
 namespace gui
 {
+
+float DpiScale()
+{
+	float scale = ImGui::GetStyle().FontScaleDpi;
+	return scale > 0.0f ? scale : 1.0f;
+}
+
+namespace
+{
+
+// Per-segment widths: label text plus horizontal padding on both sides.
+std::vector<float> SegmentWidths(std::span<const char* const> labels)
+{
+	const float padX = 12.0f * DpiScale();
+	std::vector<float> widths;
+	widths.reserve(labels.size());
+	for (const char* label : labels)
+		widths.push_back(ImGui::CalcTextSize(label).x + 2.0f * padX);
+	return widths;
+}
+
+} // namespace
+
+float SegmentedControlWidth(std::span<const char* const> labels)
+{
+	float total = 0.0f;
+	for (float w : SegmentWidths(labels))
+		total += w;
+	return total;
+}
 
 bool SegmentedControl(const char* id, std::span<const char* const> labels, int& selectedIndex)
 {
@@ -14,29 +44,18 @@ bool SegmentedControl(const char* id, std::span<const char* const> labels, int& 
 	if (count == 0)
 		return false;
 
-	float scale = ImGui::GetStyle().FontScaleDpi;
-	if (scale <= 0.0f)
-		scale = 1.0f;
+	float scale = DpiScale();
 
-	// Geometry: text width plus horizontal padding per segment, vertical padding around
-	// the font height. The pill rounding is half the height (a full capsule); the inset
-	// segment fill rounds a touch tighter so it nests inside the border.
-	const float padX = 14.0f * scale;
+	// Geometry: vertical padding around the font height. The pill rounding is half the height (a full capsule);
+	// the inset segment fill rounds a touch tighter so it nests inside the border.
 	const float padY = 6.0f * scale;
 	const float inset = 2.0f * scale;
 	const float height = ImGui::GetFontSize() + 2.0f * padY;
 	const float rounding = height * 0.5f;
 	const float innerRounding = rounding - inset;
 
-	// Per-segment widths, accumulated into the total control width.
-	std::vector<float> segWidths(static_cast<size_t>(count));
-	float totalW = 0.0f;
-	for (int i = 0; i < count; ++i)
-	{
-		float w = ImGui::CalcTextSize(labels[static_cast<size_t>(i)]).x + 2.0f * padX;
-		segWidths[static_cast<size_t>(i)] = w;
-		totalW += w;
-	}
+	std::vector<float> segWidths = SegmentWidths(labels);
+	float totalW = SegmentedControlWidth(labels);
 
 	// Reserve layout space and capture interaction with a single invisible button spanning
 	// the whole control; the cursor then advances exactly like a normal widget.
@@ -108,6 +127,29 @@ bool SegmentedControl(const char* id, std::span<const char* const> labels, int& 
 	}
 
 	return changed;
+}
+
+ImVec2 PillSize(const char* text)
+{
+	fonts::ScopedFont caption(fonts::FontStyle::Regular, fonts::kCaptionSize);
+	float scale = DpiScale();
+	ImVec2 textSize = ImGui::CalcTextSize(text);
+	return ImVec2(textSize.x + 2.0f * 7.0f * scale, textSize.y + 2.0f * 3.0f * scale);
+}
+
+void DrawPill(ImDrawList* draw, ImVec2 topLeft, const char* text, ImU32 fill, ImU32 border, ImU32 textColor)
+{
+	ImVec2 size = PillSize(text);
+	ImVec2 bottomRight(topLeft.x + size.x, topLeft.y + size.y);
+	float rounding = size.y * 0.5f;
+
+	draw->AddRectFilled(topLeft, bottomRight, fill, rounding);
+	draw->AddRect(topLeft, bottomRight, border, rounding, 0, DpiScale());
+
+	fonts::ScopedFont caption(fonts::FontStyle::Regular, fonts::kCaptionSize);
+	ImVec2 textSize = ImGui::CalcTextSize(text);
+	draw->AddText(
+		ImVec2(topLeft.x + (size.x - textSize.x) * 0.5f, topLeft.y + (size.y - textSize.y) * 0.5f), textColor, text);
 }
 
 } // namespace gui

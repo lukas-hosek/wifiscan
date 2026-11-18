@@ -1,37 +1,57 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #pragma once
+#include "ChannelAxis.hpp"
+#include "LanesView.hpp"
+#include "SpectrumView.hpp"
+#include "wifi/ChannelPlan.hpp"
 #include "wifi/Network.hpp"
-#include <imgui.h>
-#include <span>
-#include <unordered_set>
+#include <string>
 #include <vector>
 
 namespace gui
 {
 
-// WiFi-analyzer-style spectrum: each network is drawn as an unfilled outlined
-// bar spanning the channels it covers, peaking at its signal strength, with its
-// SSID centered above. Deliberately diverges from the per-channel-bar TUI view;
-// it only reuses the channel/coverage data helpers from tui::SpectrumPanel.
+// Every AP of one band over its channel axis, shown in one of two modes: Spectrum (signal humps) or Lanes (packed
+// bars plus a congestion row). The panel owns the band and mode toggles, the scrolling windows and following the
+// shared selection; the active IChannelView does the drawing.
 class SpectrumPanel
 {
 public:
-	void Render(const std::vector<wifi::Network>& networks);
+	void Render(const std::vector<wifi::Network>& networks, std::string& selectedBssid);
 
 private:
-	// Index into {GHz2_4, GHz5, GHz6}; selected via the band buttons or the Tab
-	// key. Single source of truth (no internal tab-bar state to fight with).
-	int _activeBandIndex{0};
+	// The display modes, in the order of the mode toggle
+	enum class DisplayMode
+	{
+		Spectrum,
+		Lanes
+	};
 
-	void RenderBandSelector();
-	void RenderYAxis(float leftMarginW, float availH, float topMargin, float barAreaH, float scale) const;
-	void DrawGrid(ImDrawList* draw, ImVec2 origin, float plotW, float baselineAbsY, float barAreaH) const;
-	void DrawChannelTicks(ImDrawList* draw, std::span<const int> channels, float slotW, ImVec2 origin,
-		float baselineAbsY, const std::unordered_set<int>& primaries) const;
-	void DrawNetworkBars(ImDrawList* draw, const std::vector<wifi::Network>& networks, wifi::Band band,
-		std::span<const int> channels, float slotW, ImVec2 origin, float barAreaH, float baselineAbsY,
-		float lineH) const;
+	// Tab / Shift+Tab cycle the band, M toggles the mode (global shortcuts).
+	void HandleKeyboard();
+	void RenderToolbar();
+
+	// When the selection changed outside this panel (e.g. a table row), switch to the selected AP's band. Returns
+	// true when the selected AP should be scrolled into view.
+	bool FollowSelection(const std::vector<wifi::Network>& networks, const std::string& selectedBssid);
+
+	// The APs that sit on the plan's axis, strongest first
+	[[nodiscard]] static std::vector<BandAp> CollectBandAps(
+		const std::vector<wifi::Network>& networks, const wifi::ChannelPlan& plan);
+
+	[[nodiscard]] IChannelView& ActiveView();
+
+	// Index into wifi::kSupportedBands; the band toggle edits it in place, so it is the single source of truth.
+	int _activeBandIndex{0};
+	// DisplayMode as an index, for the same reason
+	int _modeIndex{static_cast<int>(DisplayMode::Spectrum)};
+	// The selection as of the end of the last frame. Changes made by this panel's own views are already in it,
+	// so only changes from elsewhere are followed.
+	std::string _lastSeenSelection;
+
+	SpectrumView _spectrumView;
+	LanesView _lanesView;
 };
 
 } // namespace gui

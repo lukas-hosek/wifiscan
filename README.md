@@ -64,3 +64,5 @@ sudo ./build/wifiscan
 
 MIT — see [LICENSE](LICENSE).
 
+The GUI embeds [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (Regular, SemiBold, Italic), licensed under the SIL Open Font License 1.1 — see [third_party/fonts/JetBrainsMono/OFL.txt](third_party/fonts/JetBrainsMono/OFL.txt).
+

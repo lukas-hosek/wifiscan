@@ -15,6 +15,13 @@ int Network::SignalQuality() const noexcept
 	return (clamped - kMinDbm) * 100 / (kMaxDbm - kMinDbm);
 }
 
+std::string_view Network::DisplaySsid() const noexcept
+{
+	if (_ssid.empty())
+		return "(hidden)";
+	return _ssid;
+}
+
 int FreqToChannel(uint32_t frequencyMhz) noexcept
 {
 	if (frequencyMhz == 2484)

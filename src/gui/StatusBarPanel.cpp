@@ -13,8 +13,9 @@ void StatusBarPanel::SetStatus(const std::string& msg) { _statusMsg = msg; }
 
 void StatusBarPanel::Render()
 {
-	static constexpr const char* kHints = "[q] quit   [Tab] band   [Up/Down] table   [Left/Right] spectrum   "
-										  "[click header] sort";
+	static constexpr const char* kHints =
+		"[q] quit   [Tab] band   [m] mode   [Up/Down] table   [Left/Right] spectrum   "
+		"[click header] sort";
 
 	auto toVec = [](ImU32 c)
 	{

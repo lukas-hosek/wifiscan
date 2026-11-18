@@ -57,6 +57,10 @@ private:
 	// Human-readable status line updated after each scan
 	std::string _statusMsg{"Scanning..."};
 
+	// BSSID of the AP selected in the table or either spectrum mode; empty when nothing is selected. Only the
+	// render thread touches it, so it needs no lock.
+	std::string _selectedBssid;
+
 	SpectrumPanel _spectrumPanel;
 	NetworkTablePanel _networkTablePanel;
 	StatusBarPanel _statusBarPanel;

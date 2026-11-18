@@ -3,6 +3,7 @@
 #include "SpectrumPanel.hpp"
 #include "Theme.hpp"
 #include "utils/TextUtil.hpp"
+#include "wifi/ChannelPlan.hpp"
 #include <algorithm>
 #include <array>
 #include <ftxui/component/event.hpp>
@@ -27,73 +28,7 @@ constexpr int kMaxLabels = 5;
 // Rows consumed by SSID labels + channel number inside each column
 constexpr int kColumnOverhead = kMaxLabels + 1;
 
-constexpr std::array<int, 14> kChannels24{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
-constexpr std::array<int, 25> kChannels5{36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132,
-	136, 140, 144, 149, 153, 157, 161, 165};
-constexpr std::array<int, 59> kChannels6{1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73, 77,
-	81, 85, 89, 93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173,
-	177, 181, 185, 189, 193, 197, 201, 205, 209, 213, 217, 221, 225, 229, 233};
-
-constexpr std::array<wifi::Band, 3> kBands{wifi::Band::GHz2_4, wifi::Band::GHz5, wifi::Band::GHz6};
 constexpr std::array<const char*, 3> kBandLabels{"2.4 GHz", "5 GHz", "6 GHz"};
-
-std::span<const int> BandChannels(int bandIndex)
-{
-	switch (bandIndex)
-	{
-	case 0:
-		return kChannels24;
-	case 1:
-		return kChannels5;
-	default:
-		return kChannels6;
-	}
-}
-
-// Returns the list of 20-MHz channel slots an AP occupies based on its
-// primary channel + reported operating width. Returns {primary} when the
-// width is unknown or we lack the centre-frequency hint needed to span.
-std::vector<int> CoveredChannels(const wifi::Network& net)
-{
-	int primary = net._channel;
-	if (primary <= 0 || net._widthMhz <= 20)
-		return {primary};
-
-	// 2.4 GHz HT40 needs the HT-Op secondary-channel offset to know which
-	// way the pair extends. We don't surface that on Network, so fall back
-	// to primary-only (HT40 on 2.4 GHz is rare in modern deployments).
-	if (net._band == wifi::Band::GHz2_4)
-		return {primary};
-
-	if (net._centerFreq1Mhz == 0)
-		return {primary};
-
-	uint32_t baseMhz = (net._band == wifi::Band::GHz6) ? 5950U : 5000U;
-	int centerCh = static_cast<int>((net._centerFreq1Mhz - baseMhz) / 5);
-
-	auto build = [&](std::initializer_list<int> offsets)
-	{
-		std::vector<int> out;
-		out.reserve(offsets.size());
-		for (int o : offsets)
-			out.push_back(centerCh + o);
-		return out;
-	};
-
-	switch (net._widthMhz)
-	{
-	case 40:
-		return build({-2, +2});
-	case 80:
-		return build({-6, -2, +2, +6});
-	case 160:
-		return build({-14, -10, -6, -2, +2, +6, +10, +14});
-	case 320:
-		return build({-30, -26, -22, -18, -14, -10, -6, -2, +2, +6, +10, +14, +18, +22, +26, +30});
-	default:
-		return {primary};
-	}
-}
 
 struct ChannelOccupancy
 {
@@ -115,7 +50,7 @@ std::map<int, ChannelOccupancy> GroupByChannel(const std::vector<wifi::Network>&
 		if (net._band != band || net._channel <= 0)
 			continue;
 		byChannel[net._channel].primaryNets.push_back(&net);
-		for (int ch : CoveredChannels(net))
+		for (int ch : wifi::ChannelPlan::CoveredChannels(net))
 		{
 			if (ch > 0)
 				byChannel[ch].coveringNets.push_back(&net);
@@ -294,7 +229,8 @@ ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
 		visible = &filtered;
 	}
 
-	std::span<const int> allChannels = BandChannels(_activeBandIndex);
+	wifi::Band band = wifi::kSupportedBands[static_cast<size_t>(_activeBandIndex)];
+	std::span<const int> allChannels = wifi::ChannelPlan(band).Channels();
 	int totalChannels = static_cast<int>(allChannels.size());
 
 	// Each column occupies kColWidth chars + 1 separator; the last column has
@@ -319,21 +255,22 @@ ftxui::Element SpectrumPanel::Render(const std::vector<wifi::Network>& networks,
 		bandLabel += " (connected hidden)";
 
 	return RenderBand(*visible,
-		allChannels.subspan(static_cast<size_t>(_scrollOffset), static_cast<size_t>(visibleEnd - _scrollOffset)),
-		kBands[_activeBandIndex], bandLabel, maxBarHeight);
+		allChannels.subspan(static_cast<size_t>(_scrollOffset), static_cast<size_t>(visibleEnd - _scrollOffset)), band,
+		bandLabel, maxBarHeight);
 }
 
 bool SpectrumPanel::HandleEvent(ftxui::Event event)
 {
+	int bandCount = static_cast<int>(wifi::kSupportedBands.size());
 	if (event == ftxui::Event::Tab)
 	{
-		_activeBandIndex = (_activeBandIndex + 1) % static_cast<int>(kBands.size());
+		_activeBandIndex = (_activeBandIndex + 1) % bandCount;
 		_scrollOffset = 0;
 		return true;
 	}
 	if (event == ftxui::Event::TabReverse)
 	{
-		_activeBandIndex = (_activeBandIndex + static_cast<int>(kBands.size()) - 1) % static_cast<int>(kBands.size());
+		_activeBandIndex = (_activeBandIndex + bandCount - 1) % bandCount;
 		_scrollOffset = 0;
 		return true;
 	}

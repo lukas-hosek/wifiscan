@@ -6,43 +6,58 @@
 namespace gui::theme
 {
 
-// Mirrors tui::theme::UiColor (src/tui/Theme.hpp) as RGB equivalents of the named
-// FTXUI colors used by the terminal UI.
+// The GUI's dark-navy palette. It started as RGB equivalents of tui::theme::UiColor (src/tui/Theme.hpp) and has
+// since been tuned for the GUI, so the two are no longer kept identical.
 enum class UiColor
 {
 	AppBackground,
-	Border,
-	// interactive highlights: active band button, primary channel labels
+	// Interactive highlights: active band and mode, primary channel labels, selection
 	Accent,
-	ColumnHeader,
+	// Text, strongest to weakest
+	PrimaryText,
 	DataValue,
 	StatusText,
-	NetworkRow,
+	Muted,
+	ShortcutHint,
 	ConnectedNetwork,
+	// Warning text, e.g. an Open network
+	Warning,
+	// Signal strokes and fills
 	SignalStrong,
 	SignalGood,
 	SignalMedium,
 	SignalWeak,
-	Muted,
-	ShortcutHint,
+	// SignalWeak lightened so small text stays readable on the dark background
+	SignalWeakText,
 	// ImGui chrome: surfaces, borders, and selection states
 	Surface,
 	SurfaceHover,
 	SurfaceActive,
-	// transparent base table row (inherits window bg) and 2% white alt stripe
+	// Transparent base table row (inherits window bg) and 2% white alt stripe
 	RowBg,
 	SurfaceAlt,
+	Border,
 	BorderStrong,
 	SelectionBg,
 	SelectionBgHover,
 	SelectionBgActive,
+	// Charts and meters
+	MeterTrack,
+	GridLine,
+	SlotDivider,
+	EmptySlot,
 };
 
 ImU32 Color(UiColor element);
 
-// Returns a color scaled by signal strength, using the same thresholds as
-// tui::theme::SignalColor: >= -60 dBm strong, >= -70 good, >= -80 medium, else
-// weak.
+// Returns a color scaled by signal strength, using the same thresholds as tui::theme::SignalColor: >= -60 dBm
+// strong, >= -70 good, >= -80 medium, else weak.
 ImU32 SignalColor(int signalDbm);
+
+// SignalColor for text: identical except that weak uses the lighter SignalWeakText.
+ImU32 SignalTextColor(int signalDbm);
+
+// The color with its alpha multiplied by alphaScale (0..1)
+ImU32 WithAlpha(ImU32 color, float alphaScale);
 
 } // namespace gui::theme

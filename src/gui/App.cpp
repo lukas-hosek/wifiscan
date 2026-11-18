@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "App.hpp"
+#include "Fonts.hpp"
 #include "Theme.hpp"
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -97,6 +99,7 @@ void App::Run()
 	// No imgui.ini: the layout is fixed to the viewport, and ImGui would otherwise drop the file into
 	// whatever directory wifiscan was launched from.
 	ImGui::GetIO().IniFilename = nullptr;
+	fonts::Load();
 	// Keyboard nav left disabled so the arrow keys stay free for panel
 	// scrolling.
 	ImGui::StyleColorsDark();
@@ -110,7 +113,7 @@ void App::Run()
 		};
 		c[ImGuiCol_WindowBg] = tv(theme::UiColor::AppBackground);
 		c[ImGuiCol_ChildBg] = tv(theme::UiColor::AppBackground);
-		c[ImGuiCol_TableHeaderBg] = tv(theme::UiColor::Surface);
+		c[ImGuiCol_TableHeaderBg] = tv(theme::UiColor::AppBackground);
 		c[ImGuiCol_TableRowBg] = tv(theme::UiColor::RowBg);
 		c[ImGuiCol_TableRowBgAlt] = tv(theme::UiColor::SurfaceAlt);
 		c[ImGuiCol_TableBorderLight] = tv(theme::UiColor::Border);
@@ -125,11 +128,11 @@ void App::Run()
 	}
 
 	// Apply the desktop scale to widget metrics and fonts. ImGui 1.92's dynamic
-	// font system rerasterizes the embedded font at the scaled size, so no TTF
-	// needs to be loaded. Panels read style.FontScaleDpi for their own pixel
-	// constants.
+	// font system rerasterizes the embedded fonts at the scaled size. Panels read
+	// style.FontScaleDpi for their own pixel constants.
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.ScaleAllSizes(dpiScale);
+	style.FontSizeBase = fonts::kBodySize;
 	style.FontScaleDpi = dpiScale;
 
 	ImGui_ImplGlfw_InitForOpenGL(_window, true);
@@ -209,16 +212,24 @@ void App::RenderFrame()
 		float panelGap = ImGui::GetStyle().ItemSpacing.y;
 		float availH = ImGui::GetContentRegionAvail().y;
 		float bodyH = std::max(0.0f, availH - statusReserve - panelGap);
-		float spectrumH = bodyH * 0.4f;
+		// Spectrum and table share the body 1:1. Whole pixels, so the table (which takes the rest) differs by <= 1 px.
+		float spectrumH = std::floor(bodyH * 0.5f);
+
+		std::string selectionBefore = _selectedBssid;
 
 		ImGui::BeginChild("spectrum", ImVec2(0, spectrumH), true);
-		_spectrumPanel.Render(networks);
+		_spectrumPanel.Render(networks, _selectedBssid);
 		ImGui::EndChild();
 
 		// Negative height = fill what is left minus the status reserve, so rounding can't push the status bar out.
 		ImGui::BeginChild("table", ImVec2(0, -statusReserve), true);
-		_networkTablePanel.Render(networks);
+		_networkTablePanel.Render(networks, _selectedBssid);
 		ImGui::EndChild();
+
+		// The spectrum renders before the table, so it only sees a selection made in the table on the next frame.
+		// The loop sleeps until the next event, so ask for that frame now instead of waiting up to 250 ms.
+		if (_selectedBssid != selectionBefore)
+			glfwPostEmptyEvent();
 
 		_statusBarPanel.Render();
 	}

@@ -35,6 +35,7 @@ add_subdirectory(third_party/fmt)
 add_executable(wifiscan
 	src/main.cpp
 	src/wifi/Network.cpp
+	src/wifi/ChannelPlan.cpp
 	src/wifi/NL80211Scanner.cpp
 	src/tui/Theme.cpp
 	src/utils/TextUtil.cpp
@@ -73,11 +74,33 @@ if(WIFISCAN_ENABLE_GUI)
 	)
 	target_link_libraries(imgui PUBLIC PkgConfig::GLFW OpenGL::GL)
 
+	# JetBrains Mono is compiled into the binary so the GUI needs no font files at runtime.
+	set(WIFISCAN_FONT_DIR ${CMAKE_SOURCE_DIR}/third_party/fonts/JetBrainsMono)
+	set(WIFISCAN_EMBEDDED_FONTS_CPP ${CMAKE_BINARY_DIR}/generated/EmbeddedFonts.cpp)
+	add_custom_command(
+		OUTPUT ${WIFISCAN_EMBEDDED_FONTS_CPP}
+		COMMAND ${CMAKE_COMMAND} -DFONT_DIR=${WIFISCAN_FONT_DIR} -DOUTPUT=${WIFISCAN_EMBEDDED_FONTS_CPP}
+			-P ${CMAKE_SOURCE_DIR}/cmake/EmbedFonts.cmake
+		DEPENDS
+			${WIFISCAN_FONT_DIR}/JetBrainsMono-Regular.ttf
+			${WIFISCAN_FONT_DIR}/JetBrainsMono-SemiBold.ttf
+			${WIFISCAN_FONT_DIR}/JetBrainsMono-Italic.ttf
+			${CMAKE_SOURCE_DIR}/cmake/EmbedFonts.cmake
+		COMMENT "Embedding JetBrains Mono fonts"
+		VERBATIM
+	)
+
 	target_sources(wifiscan PRIVATE
 		src/gui/Theme.cpp
+		src/gui/Fonts.cpp
+		${WIFISCAN_EMBEDDED_FONTS_CPP}
 		src/gui/ImGuiExtras.cpp
 		src/gui/StatusBarPanel.cpp
 		src/gui/NetworkTablePanel.cpp
+		src/gui/ChannelAxis.cpp
+		src/gui/ApLabel.cpp
+		src/gui/SpectrumView.cpp
+		src/gui/LanesView.cpp
 		src/gui/SpectrumPanel.cpp
 		src/gui/App.cpp
 	)

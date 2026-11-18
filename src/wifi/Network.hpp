@@ -3,6 +3,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace wifi
 {
@@ -100,6 +101,9 @@ struct Network
 
 	// Returns signal quality mapped linearly from [-100, -30] dBm to [0, 100]
 	[[nodiscard]] int SignalQuality() const noexcept;
+
+	// The SSID, or "(hidden)" when the AP doesn't broadcast one. Views into _ssid, so it lives as long as this.
+	[[nodiscard]] std::string_view DisplaySsid() const noexcept;
 };
 
 int FreqToChannel(uint32_t frequencyMhz) noexcept;
