@@ -94,6 +94,9 @@ void App::Run()
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	// No imgui.ini: the layout is fixed to the viewport, and ImGui would otherwise drop the file into
+	// whatever directory wifiscan was launched from.
+	ImGui::GetIO().IniFilename = nullptr;
 	// Keyboard nav left disabled so the arrow keys stay free for panel
 	// scrolling.
 	ImGui::StyleColorsDark();
@@ -196,21 +199,24 @@ void App::RenderFrame()
 
 	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoNavFocus;
+		ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 
 	if (ImGui::Begin("##wifiscan", nullptr, kFlags))
 	{
-		float statusH = ImGui::GetTextLineHeightWithSpacing();
+		// ImGui inserts ItemSpacing.y after each child, so both gaps must be budgeted or the content overflows
+		// the viewport by a few pixels. The status reserve covers the gap above the status line plus the line.
+		float statusReserve = ImGui::GetTextLineHeightWithSpacing();
+		float panelGap = ImGui::GetStyle().ItemSpacing.y;
 		float availH = ImGui::GetContentRegionAvail().y;
-		float bodyH = std::max(0.0f, availH - statusH);
+		float bodyH = std::max(0.0f, availH - statusReserve - panelGap);
 		float spectrumH = bodyH * 0.4f;
-		float tableH = bodyH - spectrumH;
 
 		ImGui::BeginChild("spectrum", ImVec2(0, spectrumH), true);
 		_spectrumPanel.Render(networks);
 		ImGui::EndChild();
 
-		ImGui::BeginChild("table", ImVec2(0, tableH), true);
+		// Negative height = fill what is left minus the status reserve, so rounding can't push the status bar out.
+		ImGui::BeginChild("table", ImVec2(0, -statusReserve), true);
 		_networkTablePanel.Render(networks);
 		ImGui::EndChild();
 
