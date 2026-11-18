@@ -129,24 +129,25 @@ bool SegmentedControl(const char* id, std::span<const char* const> labels, int& 
 	return changed;
 }
 
-ImVec2 PillSize(const char* text)
+ImVec2 PillSize(const char* text, float fontSize)
 {
-	fonts::ScopedFont caption(fonts::FontStyle::Regular, fonts::kCaptionSize);
+	fonts::ScopedFont font(fonts::FontStyle::Regular, fontSize);
 	float scale = DpiScale();
 	ImVec2 textSize = ImGui::CalcTextSize(text);
 	return ImVec2(textSize.x + 2.0f * 7.0f * scale, textSize.y + 2.0f * 3.0f * scale);
 }
 
-void DrawPill(ImDrawList* draw, ImVec2 topLeft, const char* text, ImU32 fill, ImU32 border, ImU32 textColor)
+void DrawPill(
+	ImDrawList* draw, ImVec2 topLeft, const char* text, float fontSize, ImU32 fill, ImU32 border, ImU32 textColor)
 {
-	ImVec2 size = PillSize(text);
+	ImVec2 size = PillSize(text, fontSize);
 	ImVec2 bottomRight(topLeft.x + size.x, topLeft.y + size.y);
 	float rounding = size.y * 0.5f;
 
 	draw->AddRectFilled(topLeft, bottomRight, fill, rounding);
 	draw->AddRect(topLeft, bottomRight, border, rounding, 0, DpiScale());
 
-	fonts::ScopedFont caption(fonts::FontStyle::Regular, fonts::kCaptionSize);
+	fonts::ScopedFont font(fonts::FontStyle::Regular, fontSize);
 	ImVec2 textSize = ImGui::CalcTextSize(text);
 	draw->AddText(
 		ImVec2(topLeft.x + (size.x - textSize.x) * 0.5f, topLeft.y + (size.y - textSize.y) * 0.5f), textColor, text);

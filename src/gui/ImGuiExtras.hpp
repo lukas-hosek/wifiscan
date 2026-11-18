@@ -22,11 +22,12 @@ bool SegmentedControl(const char* id, std::span<const char* const> labels, int& 
 // Width SegmentedControl will take for these labels, so a caller can right-align it.
 float SegmentedControlWidth(std::span<const char* const> labels);
 
-// Draws a small rounded label in caption-sized text with its top-left corner at topLeft. Draw-list only: it is
-// not an ImGui item and doesn't move the cursor. Pass a transparent fill or border to leave that part out.
-void DrawPill(ImDrawList* draw, ImVec2 topLeft, const char* text, ImU32 fill, ImU32 border, ImU32 textColor);
+// Draws a small rounded label with its top-left corner at topLeft, its text at fontSize (unscaled px). Draw-list
+// only: it is not an ImGui item and doesn't move the cursor. Pass a transparent fill or border to leave that part out.
+void DrawPill(
+	ImDrawList* draw, ImVec2 topLeft, const char* text, float fontSize, ImU32 fill, ImU32 border, ImU32 textColor);
 
-// Size DrawPill takes for this text
-ImVec2 PillSize(const char* text);
+// Size DrawPill takes for this text at fontSize
+ImVec2 PillSize(const char* text, float fontSize);
 
 } // namespace gui

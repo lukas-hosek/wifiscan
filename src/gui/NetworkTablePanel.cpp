@@ -29,20 +29,21 @@ struct ColumnDescriptor
 };
 
 // Layout in px at 1x scale
-// Fits the longest possible SSID (32 characters) plus the connected dot. Fixed rather than stretching, so on a wide
-// window the values stay next to their SSID.
+// Fits a 29-character SSID plus the connected dot; longer ones (up to 32) are clipped. Fixed rather than stretching,
+// so on a wide window the values stay next to their SSID.
 constexpr float kSsidWidth = 280.0f;
 // On a narrow window the SSID column gives up width down to this before other columns start to drop
 constexpr float kSsidMinWidth = 160.0f;
 
+// Each width fits its column's longest value and its header at fonts::kLargeSize (e.g. a BSSID, "SECURITY").
 constexpr std::array<ColumnDescriptor, 9> kColumns = {{
 	{ColumnType::SSID, "SSID", kSsidWidth, true, false},
-	{ColumnType::BSSID, "BSSID", 150.0f, false, false},
+	{ColumnType::BSSID, "BSSID", 154.0f, false, false},
 	{ColumnType::Channel, "CH", 40.0f, true, false},
 	{ColumnType::Width, "WIDTH", 64.0f, false, false},
 	{ColumnType::Band, "BAND", 52.0f, false, false},
 	{ColumnType::Standard, "STD", 44.0f, false, false},
-	{ColumnType::Security, "SECURITY", 64.0f, false, false},
+	{ColumnType::Security, "SECURITY", 72.0f, false, false},
 	{ColumnType::Rate, "RATE", 76.0f, false, true},
 	{ColumnType::Signal, "SIGNAL", 176.0f, true, false},
 }};
@@ -53,6 +54,8 @@ constexpr float kRowHeight = 26.0f;
 // The "connected" dot before the SSID, and the gap after it. The slot is reserved on every row so names align.
 constexpr float kConnectedDotSize = 8.0f;
 constexpr float kConnectedDotGap = 8.0f;
+// Where SSID text starts in its cell; the SSID header uses it too, so it lines up with the names, not the dot
+constexpr float kSsidTextIndent = kConnectedDotSize + kConnectedDotGap;
 // Signal column: meter thickness, and the gap between the meter and the dBm text
 constexpr float kMeterHeight = 6.0f;
 constexpr float kMeterGap = 8.0f;
@@ -208,6 +211,8 @@ bool NetworkTablePanel::HandleKeyboard(const std::vector<wifi::Network>& sorted,
 
 void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::string& selectedBssid)
 {
+	fonts::ScopedFont listFont(fonts::FontStyle::Regular, fonts::kLargeSize);
+
 	std::vector<wifi::Network> sorted = SortedNetworks(networks);
 
 	bool keyboardMoved = HandleKeyboard(sorted, selectedBssid);
@@ -311,8 +316,6 @@ void NetworkTablePanel::Render(const std::vector<wifi::Network>& networks, std::
 void NetworkTablePanel::RenderHeaderCell(
 	ColumnType type, const char* header, bool sortable, bool rightAligned, const CellBox& cell)
 {
-	fonts::ScopedFont caption(fonts::FontStyle::Regular, fonts::kCaptionSize);
-
 	bool isActive = type == _sortColumn;
 	bool hovered = false;
 	if (sortable)
@@ -337,7 +340,8 @@ void NetworkTablePanel::RenderHeaderCell(
 
 	ImDrawList* draw = ImGui::GetWindowDrawList();
 	ImVec2 textSize = ImGui::CalcTextSize(header);
-	float textX = rightAligned ? cell.max.x - textSize.x : cell.min.x;
+	float indent = type == ColumnType::SSID ? kSsidTextIndent * DpiScale() : 0.0f;
+	float textX = rightAligned ? cell.max.x - textSize.x : cell.min.x + indent;
 	DrawText(draw, ImVec2(textX, cell.CenteredY(textSize.y)),
 		(isActive || hovered) ? UiColor::PrimaryText : UiColor::Muted, header);
 
@@ -415,10 +419,10 @@ void NetworkTablePanel::RenderCell(ColumnType type, const wifi::Network& net, co
 			ImVec2 dotCenter(cell.min.x + dotSize * 0.5f, cell.min.y + (cell.max.y - cell.min.y) * 0.5f);
 			draw->AddCircleFilled(dotCenter, dotSize * 0.5f, theme::Color(UiColor::ConnectedNetwork));
 		}
-		ImVec2 textPos(cell.min.x + dotSize + kConnectedDotGap * scale, textY);
+		ImVec2 textPos(cell.min.x + kSsidTextIndent * scale, textY);
 		if (net._ssid.empty())
 		{
-			fonts::ScopedFont italic(fonts::FontStyle::Italic, fonts::kBodySize);
+			fonts::ScopedFont italic(fonts::FontStyle::Italic, fonts::kLargeSize);
 			DrawText(draw, textPos, UiColor::Muted, net.DisplaySsid());
 		}
 		else
@@ -432,7 +436,7 @@ void NetworkTablePanel::RenderCell(ColumnType type, const wifi::Network& net, co
 		break;
 	case ColumnType::Channel:
 	{
-		fonts::ScopedFont semiBold(fonts::FontStyle::SemiBold, fonts::kBodySize);
+		fonts::ScopedFont semiBold(fonts::FontStyle::SemiBold, fonts::kLargeSize);
 		std::snprintf(buffer, sizeof(buffer), "%d", net._channel);
 		DrawText(draw, ImVec2(cell.min.x, textY), UiColor::Accent, buffer);
 		break;
@@ -453,9 +457,9 @@ void NetworkTablePanel::RenderCell(ColumnType type, const wifi::Network& net, co
 	case ColumnType::Band:
 	{
 		std::string label = wifi::BandLabel(net._band);
-		ImVec2 pillSize = PillSize(label.c_str());
-		DrawPill(draw, ImVec2(cell.min.x, cell.CenteredY(pillSize.y)), label.c_str(), theme::Color(UiColor::Surface),
-			IM_COL32_BLACK_TRANS, theme::Color(UiColor::DataValue));
+		ImVec2 pillSize = PillSize(label.c_str(), fonts::kLargeSize);
+		DrawPill(draw, ImVec2(cell.min.x, cell.CenteredY(pillSize.y)), label.c_str(), fonts::kLargeSize,
+			theme::Color(UiColor::Surface), IM_COL32_BLACK_TRANS, theme::Color(UiColor::DataValue));
 		break;
 	}
 	case ColumnType::Standard:
@@ -469,9 +473,9 @@ void NetworkTablePanel::RenderCell(ColumnType type, const wifi::Network& net, co
 			isOpen ? theme::WithAlpha(theme::Color(UiColor::Warning), 0.55f) : theme::Color(UiColor::BorderStrong);
 		ImU32 textColor = theme::Color(isOpen ? UiColor::Warning : UiColor::DataValue);
 		std::string label = wifi::SecurityLabel(net._security);
-		ImVec2 pillSize = PillSize(label.c_str());
-		DrawPill(draw, ImVec2(cell.min.x, cell.CenteredY(pillSize.y)), label.c_str(), IM_COL32_BLACK_TRANS, border,
-			textColor);
+		ImVec2 pillSize = PillSize(label.c_str(), fonts::kLargeSize);
+		DrawPill(draw, ImVec2(cell.min.x, cell.CenteredY(pillSize.y)), label.c_str(), fonts::kLargeSize,
+			IM_COL32_BLACK_TRANS, border, textColor);
 		break;
 	}
 	case ColumnType::Rate:

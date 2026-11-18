@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // wifiscan - copyright (c) 2026 Lukas Hosek
 #include "SpectrumPanel.hpp"
+#include "Fonts.hpp"
 #include "ImGuiExtras.hpp"
 #include <algorithm>
 #include <array>
@@ -45,6 +46,8 @@ void SpectrumPanel::HandleKeyboard()
 
 void SpectrumPanel::RenderToolbar()
 {
+	// Also sizes the right-aligned mode toggle's width below, so both must be measured in this font.
+	fonts::ScopedFont font(fonts::FontStyle::Regular, fonts::kLargeSize);
 	SegmentedControl("##band", std::span<const char* const>{kBandLabels}, _activeBandIndex);
 
 	// The mode toggle sits at the right edge of the panel.

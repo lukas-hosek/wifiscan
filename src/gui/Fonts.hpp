@@ -19,8 +19,11 @@ enum class FontStyle
 constexpr float kBodySize = 13.0f;
 // Chart labels, channel ticks, dBm axis
 constexpr float kSmallSize = 12.0f;
-// Table header, pills, row captions
+// Row captions
 constexpr float kCaptionSize = 11.0f;
+// All text in the network list (header and pills included) and the toolbar toggles above the chart. Larger than
+// the rest: these are read the most, and their rows have the room.
+constexpr float kLargeSize = 15.0f;
 
 // Registers the embedded JetBrains Mono faces with the ImGui font atlas. Regular becomes the default font. Call
 // once, right after ImGui::CreateContext().
