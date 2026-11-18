@@ -2,9 +2,12 @@
 
 A small Linux ImGui & terminal app that scans for nearby WiFi networks and displays them in a spectrum & list view.
 
-<img width="1764" height="1219" alt="image" src="https://github.com/user-attachments/assets/05faf960-3998-4b66-a7bc-671e9d197365" />
+<img width="1877" height="1380" alt="image" src="https://github.com/user-attachments/assets/8a6f2d9c-b03a-49cd-834e-b97f67bfd334" />
 
-<img width="1706" height="1172" alt="image" src="https://github.com/user-attachments/assets/091a97f0-271a-4a0c-8e68-c18423bc4172" />
+<img width="1877" height="1380" alt="image" src="https://github.com/user-attachments/assets/3bda94be-0958-44bf-8dd7-57d9a179ffe0" />
+
+<img width="1526" height="1147" alt="image" src="https://github.com/user-attachments/assets/710910a8-1fd1-4710-b3ca-f9d9f962ee9b" />
+
 
 ## How to use:
 
