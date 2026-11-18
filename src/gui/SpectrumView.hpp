@@ -23,7 +23,7 @@ private:
 	struct ChartGeometry
 	{
 		float chartTop;
-		// The -100 dBm line, where humps stand and the channel ticks start
+		// The bottom line of the dBm axis, where humps stand and the channel ticks start
 		float baseline;
 
 		[[nodiscard]] float YOf(int signalDbm) const;

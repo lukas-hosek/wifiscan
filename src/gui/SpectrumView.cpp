@@ -16,8 +16,8 @@ namespace
 using theme::UiColor;
 
 // dBm range of the vertical axis, and the grid step
-constexpr int kAxisTopDbm = -20;
-constexpr int kAxisBottomDbm = -100;
+constexpr int kAxisTopDbm = -10;
+constexpr int kAxisBottomDbm = -90;
 constexpr int kGridStepDbm = 20;
 
 // Layout in px at 1x scale
@@ -250,9 +250,10 @@ void SpectrumView::DrawHump(ImDrawList* draw, ImVec2 origin, const ChannelAxis& 
 		draw->PathBezierCubicCurveTo(ImVec2(x1 - slope * 0.5f, top), ImVec2(x1 - slope * 0.5f, base), ImVec2(x1, base));
 	};
 
-	// The S-curves make the shape non-convex, so it needs the concave fill. A flat hump (at -100 dBm) has no area.
-	// Anti-aliasing is off for the fill: ImGui's AA concave fill insets the vertices of its thin triangles, they
-	// overlap, and the translucent fill shows dotted seams. The anti-aliased stroke covers the edge anyway.
+	// The S-curves make the shape non-convex, so it needs the concave fill. A flat hump (at the bottom of the axis)
+	// has no area. Anti-aliasing is off for the fill: ImGui's AA concave fill insets the vertices of its thin
+	// triangles, they overlap, and the translucent fill shows dotted seams. The anti-aliased stroke covers the edge
+	// anyway.
 	if (base - top >= 1.0f)
 	{
 		ImDrawListFlags savedFlags = draw->Flags;
